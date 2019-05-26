@@ -12,13 +12,14 @@ module.exports = class QueueCommand extends commando.Command {
   }
 
   async run(message) {
+    const serverQueue = [];
     const server = servers[message.guild.id];
-    let serverQueue = [];
-    server.queue.map(url => {
-      YTDL.getBasicInfo(url, function(err, result) {
-        serverQueue.push(result.title);
+    for (let i = 0; i < server.queue.length; i++) {
+      let res = await YTDL.getBasicInfo(server.queue[i]).then(result => {
+        return `${i + 1}: ${result.title}`;
       });
-    });
-    console.log(serverQueue);
+      serverQueue.push(res);
+    }
+    message.channel.send(serverQueue);
   }
 };
