@@ -11,10 +11,12 @@ module.exports = class StopCommand extends commando.Command {
   }
 
   async run(message, argu) {
+    const server = servers[message.guild.id];
     if (message.member.voiceChannel) {
       if (!message.guild.voiceConnection) {
         return null;
       } else if (message.guild.voiceConnection) {
+        server.queue = [];
         message.guild.voiceConnection.disconnect();
         this.client.user.setActivity(null);
       }
