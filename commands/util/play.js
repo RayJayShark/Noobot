@@ -2,22 +2,6 @@ const commando = require("discord.js-commando");
 const YTDL = require("ytdl-core");
 const { RichEmbed } = require("discord.js");
 
-function play(connection, message) {
-  const server = servers[message.guild.id];
-  console.log(server.queue);
-  server.dispatcher = connection.playStream(
-    YTDL(server.queue[0], { filter: "audioonly" })
-  );
-  server.queue.shift();
-  server.dispatcher.on("end", () => {
-    if (server.queue[0]) {
-      play(connection, message);
-    } else {
-      connection.disconnect();
-    }
-  });
-}
-
 module.exports = class PlayCommand extends commando.Command {
   constructor(client) {
     super(client, {
@@ -25,6 +9,26 @@ module.exports = class PlayCommand extends commando.Command {
       group: "util",
       memberName: "play",
       description: ""
+    });
+  }
+
+  play(connection, message) {
+    const server = servers[message.guild.id];
+    YTDL.getBasicInfo(server.queue[0]).then(result => {
+      this.client.user.setActivity(result.title);
+      message.channel.send(`Now playing: ${result.title}`);
+    });
+    server.dispatcher = connection.playStream(
+      YTDL(server.queue[0], { filter: "audioonly" })
+    );
+    server.queue.shift();
+    server.dispatcher.on("end", () => {
+      if (server.queue[0]) {
+        this.play(connection, message);
+      } else {
+        connection.disconnect();
+        this.client.user.setActivity(null);
+      }
     });
   }
 
@@ -37,7 +41,7 @@ module.exports = class PlayCommand extends commando.Command {
         message.member.voiceChannel.join().then(connection => {
           const server = servers[message.guild.id];
           server.queue.push(argu);
-          play(connection, message);
+          this.play(connection, message);
         });
       } else if (message.guild.voiceConnection) {
         const server = servers[message.guild.id];
