@@ -12,8 +12,8 @@ module.exports = class QueueCommand extends commando.Command {
   }
 
   async run(message) {
-    const serverQueue = [];
     const server = servers[message.guild.id];
+    let serverQueue = [];
     for (let i = 0; i < server.queue.length; i++) {
       let res = await YTDL.getBasicInfo(server.queue[i]).then(result => {
         return `${i + 1}: ${result.title}`;
