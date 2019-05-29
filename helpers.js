@@ -13,10 +13,10 @@ module.exports = class Helpers {
     server.queue.shift();
     server.dispatcher.on("end", () => {
       if (server.queue[0]) {
-        this.play(connection, message);
+        this.play(connection, message, client);
       } else {
-        connection.disconnect();
         client.user.setActivity(null);
+        connection.disconnect();
       }
     });
   }

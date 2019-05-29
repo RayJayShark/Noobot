@@ -10,7 +10,7 @@ module.exports = class StopCommand extends commando.Command {
     });
   }
 
-  async run(message, argu) {
+  async run(message) {
     const server = servers[message.guild.id];
     if (message.member.voiceChannel) {
       if (!message.guild.voiceConnection) {
