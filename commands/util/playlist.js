@@ -82,10 +82,11 @@ module.exports = class PlaylistCommand extends commando.Command {
           }
           const newPlaylist = {
             ...playlists,
-            [message.guild.id]: [removed[0], found[0]]
+            [message.guild.id]: [...removed, found[0]]
           };
+
           fs.writeFileSync("playlists.json", JSON.stringify(newPlaylist));
-          message.channel.send("Playlist created!");
+          message.channel.send(`Song added to Playlist: **${plName}**`);
         });
         break;
     }
