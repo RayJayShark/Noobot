@@ -89,6 +89,31 @@ module.exports = class PlaylistCommand extends commando.Command {
           message.channel.send(`Song added to Playlist: **${plName}**`);
         });
         break;
+      case "remove":
+        fs.readFile("playlists.json", "utf8", (err, data) => {
+          const playlists = JSON.parse(data);
+          const found = playlists[message.guild.id].filter(
+            playlist => playlist.playlistName === plName
+          );
+          if (found[0].songs.includes(url)) {
+            const removed = playlists[message.guild.id].filter(
+              playlist => playlist.playlistName !== plName
+            );
+            const removedSong = found[0].songs.filter(song => song !== url);
+            found[0].songs = [...removedSong];
+            const newPlaylist = {
+              ...playlists,
+              [message.guild.id]: [...removed, found[0]]
+            };
+            fs.writeFileSync("playlists.json", JSON.stringify(newPlaylist));
+            message.channel.send(`Song removed from Playlist: **${plName}**`);
+          } else {
+            message.channel.send(
+              "Song is not in selected playlist. Check your URL/Playlist name and try again."
+            );
+          }
+        });
+        break;
     }
   }
 };
