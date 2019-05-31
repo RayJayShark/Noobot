@@ -1,7 +1,12 @@
 const YTDL = require("ytdl-core");
-const ytSearch = require("yt-search");
 const Spotify = require("node-spotify-api");
+const ytSearch = require("yt-search");
 require("dotenv").config();
+
+const opts = {
+  maxResults: 10,
+  key: process.env.YOUTUBE_KEY
+};
 
 const spotify = new Spotify({
   id: process.env.SPOTIFY_ID,
@@ -31,14 +36,29 @@ module.exports = class Helpers {
 
   static getSpotifyUrl(args) {
     return new Promise(async (resolve, reject) => {
-      const trackId = args.split("/")[4].split("?")[0];
-      let url = await spotify
-        .request(`https://api.spotify.com/v1/tracks/${trackId}`)
-        .then(data => this.searchYoutube(data))
-        .catch(err => {
-          reject(err);
-        });
-      resolve(url);
+      if (args.includes("track")) {
+        const trackId = args.split("/")[4].split("?")[0];
+        let url = await spotify
+          .request(`https://api.spotify.com/v1/tracks/${trackId}`)
+          .then(data => this.searchYoutube(data))
+          .catch(err => {
+            reject(err);
+          });
+        resolve(url);
+      } else if (args.includes("playlist")) {
+        const playlistId = args.split("/")[6].split("?")[0];
+        const queue = await spotify
+          .request(`https://api.spotify.com/v1/playlists/${playlistId}`)
+          .then(async data => {
+            return await Promise.all(
+              data["tracks"].items.map(track => this.searchYoutube(track.track))
+            );
+          })
+          .catch(err => {
+            reject(err);
+          });
+        resolve(queue);
+      }
     });
   }
 
@@ -51,19 +71,21 @@ module.exports = class Helpers {
       const search = `${trackName} ${artist} ${date}`;
 
       ytSearch(search, (err, r) => {
+        if (err) {
+          reject(err);
+        }
         const videos = r.videos;
         const filtered = videos.filter(
           video =>
             (video.seconds - duration < 15 && video.seconds - duration > 0) ||
             (duration - video.seconds < 15 && duration - video.seconds > 0)
         );
+
         const newUrl =
           filtered.length > 0
             ? `https://www.youtube.com${filtered[0].url}`
             : `https://www.youtube.com${videos[0].url}`;
-        if (err) {
-          reject(err);
-        }
+
         resolve(newUrl);
       });
     });
