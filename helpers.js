@@ -29,41 +29,43 @@ module.exports = class Helpers {
     });
   }
 
-  static convertToYouTube(args, message, client, play, connection) {
-    const trackId = args.split("/")[4].split("?")[0];
-    this.getSpotifyUrl(trackId, message, client, play, connection);
+  static getSpotifyUrl(args) {
+    return new Promise(async (resolve, reject) => {
+      const trackId = args.split("/")[4].split("?")[0];
+      let url = await spotify
+        .request(`https://api.spotify.com/v1/tracks/${trackId}`)
+        .then(data => this.searchYoutube(data))
+        .catch(err => {
+          reject(err);
+        });
+      resolve(url);
+    });
   }
 
-  static getSpotifyUrl(trackId, message, client, play, connection) {
-    spotify
-      .request(`https://api.spotify.com/v1/tracks/${trackId}`)
-      .then(data => {
-        const trackName = data.name;
-        const artist = data["album"]["artists"][0].name;
-        const date = data["album"].release_date.split("-")[0];
-        const duration = data.duration_ms / 1000;
-        const search = `${trackName} ${artist} ${date}`;
-        this.searchYoutube(search, duration, message, client, play, connection);
-      })
-      .catch(err => {
-        console.error("Error occurred: " + err);
+  static async searchYoutube(data) {
+    return new Promise((resolve, reject) => {
+      const trackName = data.name;
+      const artist = data["album"]["artists"][0].name;
+      const date = data["album"].release_date.split("-")[0];
+      const duration = data.duration_ms / 1000;
+      const search = `${trackName} ${artist} ${date}`;
+
+      ytSearch(search, (err, r) => {
+        const videos = r.videos;
+        const filtered = videos.filter(
+          video =>
+            (video.seconds - duration < 15 && video.seconds - duration > 0) ||
+            (duration - video.seconds < 15 && duration - video.seconds > 0)
+        );
+        const newUrl =
+          filtered.length > 0
+            ? `https://www.youtube.com${filtered[0].url}`
+            : `https://www.youtube.com${videos[0].url}`;
+        if (err) {
+          reject(err);
+        }
+        resolve(newUrl);
       });
-  }
-
-  static searchYoutube(search, duration, message, client, play, connection) {
-    const server = servers[message.guild.id];
-    ytSearch(search, (err, r) => {
-      const videos = r.videos;
-      const filtered = videos.filter(
-        video =>
-          (video.seconds - duration < 2 && video.seconds - duration > 0) ||
-          (duration - video.seconds < 2 && duration - video.seconds > 0)
-      );
-      const newUrl = `https://www.youtube.com/${filtered[0].url}`;
-      server.queue.push(newUrl);
-      if (play === "true") {
-        this.play(connection, message, client);
-      }
     });
   }
 };

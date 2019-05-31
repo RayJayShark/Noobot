@@ -18,16 +18,12 @@ module.exports = class PlayCommand extends commando.Command {
         if (!servers[message.guild.id]) {
           servers[message.guild.id] = { queue: [] };
         }
-        message.member.voiceChannel.join().then(connection => {
+        message.member.voiceChannel.join().then(async connection => {
           if (args.includes("spotify")) {
-            const playOrNot = "true";
-            helper.convertToYouTube(
-              args,
-              message,
-              this.client,
-              playOrNot,
-              connection
-            );
+            const url = await helper.getSpotifyUrl(args);
+            const server = servers[message.guild.id];
+            server.queue.push(url);
+            helper.play(connection, message, this.client);
           } else if (!args.includes("spotify")) {
             const server = servers[message.guild.id];
             server.queue.push(args);
@@ -36,7 +32,9 @@ module.exports = class PlayCommand extends commando.Command {
         });
       } else if (message.guild.voiceConnection) {
         if (args.includes("spotify")) {
-          helper.convertToYouTube(args, message, this.client);
+          const url = await helper.getSpotifyUrl(args);
+          const server = servers[message.guild.id];
+          server.queue.push(url);
         } else if (!args.includes("spotify")) {
           const server = servers[message.guild.id];
           server.queue.push(args);
