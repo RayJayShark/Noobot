@@ -62,7 +62,7 @@ module.exports = class Helpers {
     });
   }
 
-  static async searchYoutube(data) {
+  static searchYoutube(data) {
     return new Promise((resolve, reject) => {
       const trackName = data.name;
       const artist = data["album"]["artists"][0].name;
@@ -70,16 +70,19 @@ module.exports = class Helpers {
       const duration = data.duration_ms / 1000;
       const search = `${trackName} ${artist} ${date}`;
 
-      ytSearch(search, (err, r) => {
+      ytSearch("bloodborne soundtrack", (err, r) => {
         if (err) {
           reject(err);
         }
+
         const videos = r.videos;
+        const playlists = r.playlists;
         const filtered = videos.filter(
           video =>
             (video.seconds - duration < 15 && video.seconds - duration > 0) ||
             (duration - video.seconds < 15 && duration - video.seconds > 0)
         );
+        console.log(playlists[0]);
 
         const newUrl =
           filtered.length > 0
@@ -89,5 +92,13 @@ module.exports = class Helpers {
         resolve(newUrl);
       });
     });
+  }
+
+  static async processTitles(array) {
+    return await Promise.all(
+      array.map((url, index) =>
+        YTDL.getBasicInfo(url).then(res => `${index + 1}: ${res.title}`)
+      )
+    );
   }
 };

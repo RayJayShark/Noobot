@@ -1,5 +1,5 @@
 const commando = require("discord.js-commando");
-const YTDL = require("ytdl-core");
+const helper = require("../../helpers");
 
 module.exports = class QueueCommand extends commando.Command {
   constructor(client) {
@@ -13,13 +13,9 @@ module.exports = class QueueCommand extends commando.Command {
 
   async run(message) {
     const server = servers[message.guild.id];
-    let serverQueue = [];
-    for (let i = 0; i < server.queue.length; i++) {
-      let res = await YTDL.getBasicInfo(server.queue[i]).then(result => {
-        return `${i + 1}: ${result.title}`;
-      });
-      serverQueue.push(res);
-    }
-    message.channel.send(serverQueue);
+    const urls = await helper.processTitles(server.queue);
+    const array2 = urls.splice(Math.round(urls.length / 2));
+    message.channel.send(urls);
+    message.channel.send(array2);
   }
 };

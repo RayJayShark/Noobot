@@ -1,5 +1,4 @@
 const commando = require("discord.js-commando");
-const YTDL = require("ytdl-core");
 const helper = require("../../helpers");
 var fs = require("fs");
 
@@ -21,7 +20,7 @@ module.exports = class PlaylistCommand extends commando.Command {
 
     switch (command) {
       case "create":
-        fs.readFile("playlists.json", "utf8", (err, data) => {
+        fs.readFile("playlists.json", "utf8", async (err, data) => {
           const playlists = JSON.parse(data);
           const currentServer = playlists[message.guild.id];
           if (currentServer) {
@@ -39,7 +38,11 @@ module.exports = class PlaylistCommand extends commando.Command {
                     creator: `${message.author.username}#${
                       message.author.discriminator
                     }`,
-                    songs: url ? [url] : []
+                    songs: args.includes("spotify")
+                      ? args.includes("/playlist/")
+                        ? [...(await helper.getSpotifyUrl(url))]
+                        : [await helper.getSpotifyUrl(url)]
+                      : [url] || []
                   }
                 ]
               };
@@ -120,22 +123,15 @@ module.exports = class PlaylistCommand extends commando.Command {
         });
         break;
       case "view":
-        fs.readFile("playlists.json", "utf8", (err, data) => {
-          async function processTitles(array) {
-            const playlistTitles = [];
-            for (let i = 0; i < array.length; i++) {
-              let res = await YTDL.getBasicInfo(array[i]).then(result => {
-                return `${i + 1}: ${result.title}`;
-              });
-              playlistTitles.push(res);
-            }
-            message.channel.send(playlistTitles);
-          }
+        fs.readFile("playlists.json", "utf8", async (err, data) => {
           const playlists = JSON.parse(data);
           const found = playlists[message.guild.id].filter(
             playlist => playlist.playlistName === plName
           );
-          processTitles(found[0].songs);
+          const urls = await helper.processTitles(found[0].songs);
+          const array2 = urls.splice(Math.round(urls.length / 2));
+          message.channel.send(urls);
+          message.channel.send(array2);
         });
         break;
       case "play":
