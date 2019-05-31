@@ -12,20 +12,35 @@ module.exports = class PlayCommand extends commando.Command {
     });
   }
 
-  async run(message, argu) {
+  async run(message, args) {
     if (message.member.voiceChannel) {
       if (!message.guild.voiceConnection) {
         if (!servers[message.guild.id]) {
           servers[message.guild.id] = { queue: [] };
         }
         message.member.voiceChannel.join().then(connection => {
-          const server = servers[message.guild.id];
-          server.queue.push(argu);
-          helper.play(connection, message, this.client);
+          if (args.includes("spotify")) {
+            const playOrNot = "true";
+            helper.convertToYouTube(
+              args,
+              message,
+              this.client,
+              playOrNot,
+              connection
+            );
+          } else if (!args.includes("spotify")) {
+            const server = servers[message.guild.id];
+            server.queue.push(args);
+            helper.play(connection, message, this.client);
+          }
         });
       } else if (message.guild.voiceConnection) {
-        const server = servers[message.guild.id];
-        server.queue.push(argu);
+        if (args.includes("spotify")) {
+          helper.convertToYouTube(args, message, this.client);
+        } else if (!args.includes("spotify")) {
+          const server = servers[message.guild.id];
+          server.queue.push(args);
+        }
       }
     } else {
       message.reply("You need to be in a voice channel.");

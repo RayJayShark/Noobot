@@ -14,10 +14,10 @@ module.exports = class PlaylistCommand extends commando.Command {
     });
   }
 
-  async run(message, argu) {
-    const command = argu.split(" ")[0];
-    const plName = argu.split(" ")[1];
-    const url = argu.split(" ")[2];
+  async run(message, args) {
+    const command = args.split(" ")[0];
+    const plName = args.split(" ")[1];
+    const url = args.split(" ")[2];
 
     switch (command) {
       case "create":
