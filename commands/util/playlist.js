@@ -21,6 +21,11 @@ module.exports = class PlaylistCommand extends commando.Command {
     switch (command) {
       case "create":
         fs.readFile("playlists.json", "utf8", async (err, data) => {
+          if (args.includes("spotify")) {
+            message.channel.send(
+              "Converting Spotify Playlist. This can take some time depending on how many songs are in the playlist. Give me a few seconds..."
+            );
+          }
           const playlists = JSON.parse(data);
           const currentServer = playlists[message.guild.id];
           if (currentServer) {
@@ -50,7 +55,6 @@ module.exports = class PlaylistCommand extends commando.Command {
                 "playlists.json",
                 JSON.stringify(copyOfPlaylist)
               );
-
               message.channel.send("Playlist created!");
             }
           } else if (!currentServer) {

@@ -40,7 +40,7 @@ module.exports = class Helpers {
         const trackId = args.split("/")[4].split("?")[0];
         let url = await spotify
           .request(`https://api.spotify.com/v1/tracks/${trackId}`)
-          .then(data => this.searchYoutube(data))
+          .then(data => this.createYoutubeSearch(data))
           .catch(err => {
             reject(err);
           });
@@ -51,7 +51,9 @@ module.exports = class Helpers {
           .request(`https://api.spotify.com/v1/playlists/${playlistId}`)
           .then(async data => {
             return await Promise.all(
-              data["tracks"].items.map(track => this.searchYoutube(track.track))
+              data["tracks"].items.map(track =>
+                this.createYoutubeSearch(track.track)
+              )
             );
           })
           .catch(err => {
@@ -62,38 +64,57 @@ module.exports = class Helpers {
     });
   }
 
-  static searchYoutube(data) {
-    return new Promise((resolve, reject) => {
+  static createYoutubeSearch(data) {
+    return new Promise(async (resolve, reject) => {
       const trackName = data.name;
       const album = data["album"].name;
       const artist = data["album"]["artists"][0].name;
       const date = data["album"].release_date.split("-")[0];
       const duration = data.duration_ms / 1000;
       const search = `${artist} ${trackName} ${date}`;
+      const url = await this.searchYoutube(search, artist, trackName, duration);
+      resolve(url);
+    });
+  }
 
-      ytSearch(search, (err, r) => {
+  static searchYoutube(search, artist, trackName, duration) {
+    return new Promise((resolve, reject) => {
+      const opts = {
+        query: search,
+        pageStart: 1,
+        pageEnd: 2
+      };
+
+      ytSearch(opts, (err, r) => {
         if (err) {
           reject(err);
         }
         const videos = r.videos;
         const playlists = r.playlists;
-        const official = videos.filter(
-          video =>
-            video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
-            video.title.toLowerCase().includes(trackName.toLowerCase())
-        );
+        if ((artist, trackName, duration)) {
+          const official = videos.filter(
+            video =>
+              video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
+              video.title.toLowerCase().includes(trackName.toLowerCase())
+          );
+          let largest = official[0];
+          for (let i = 0; i < official.length; i++) {
+            if (official[i].views > largest.views) {
+              largest = official[i];
+            }
+          }
+          const newUrl =
+            !trackName.toLowerCase().includes("live") && official.length > 0
+              ? `https://www.youtube.com${largest.url}`
+              : null;
+          resolve(newUrl);
+        }
+
         const filtered = videos.filter(
           video =>
             (video.seconds - duration < 3 && video.seconds - duration > 0) ||
             (duration - video.seconds < 3 && duration - video.seconds > 0)
         );
-
-        let largest = official[0];
-        for (let i = 0; i < official.length; i++) {
-          if (official[i].views > largest.views) {
-            largest = official[i];
-          }
-        }
 
         let largestFiltered = filtered[0];
         for (let i = 0; i < filtered.length; i++) {
@@ -103,9 +124,7 @@ module.exports = class Helpers {
         }
 
         const newUrl =
-          !trackName.toLowerCase().includes("live") && official.length > 0
-            ? `https://www.youtube.com${largest.url}`
-            : filtered.length > 0
+          filtered.length > 0
             ? `https://www.youtube.com${largestFiltered.url}`
             : `https://www.youtube.com${videos[0].url}`;
 
