@@ -69,7 +69,7 @@ module.exports = class Helpers {
       const artist = data["album"]["artists"][0].name;
       const date = data["album"].release_date.split("-")[0];
       const duration = data.duration_ms / 1000;
-      const search = `${artist} ${trackName}`;
+      const search = `${artist} ${trackName} ${date}`;
 
       ytSearch(search, (err, r) => {
         if (err) {
@@ -80,20 +80,33 @@ module.exports = class Helpers {
         const official = videos.filter(
           video =>
             video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
-            video.title.toLowerCase().includes("official") &&
             video.title.toLowerCase().includes(trackName.toLowerCase())
         );
         const filtered = videos.filter(
           video =>
-            (video.seconds - duration < 5 && video.seconds - duration > 0) ||
-            (duration - video.seconds < 5 && duration - video.seconds > 0)
+            (video.seconds - duration < 3 && video.seconds - duration > 0) ||
+            (duration - video.seconds < 3 && duration - video.seconds > 0)
         );
-        console.log(search, official[0]);
+
+        let largest = official[0];
+        for (let i = 0; i < official.length; i++) {
+          if (official[i].views > largest.views) {
+            largest = official[i];
+          }
+        }
+
+        let largestFiltered = filtered[0];
+        for (let i = 0; i < filtered.length; i++) {
+          if (filtered[i].views > largestFiltered.views) {
+            largestFiltered = filtered[i];
+          }
+        }
+
         const newUrl =
           !trackName.toLowerCase().includes("live") && official.length > 0
-            ? `https://www.youtube.com${official[0].url}`
+            ? `https://www.youtube.com${largest.url}`
             : filtered.length > 0
-            ? `https://www.youtube.com${filtered[0].url}`
+            ? `https://www.youtube.com${largestFiltered.url}`
             : `https://www.youtube.com${videos[0].url}`;
 
         resolve(newUrl);
