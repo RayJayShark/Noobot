@@ -129,9 +129,11 @@ module.exports = class PlaylistCommand extends commando.Command {
             playlist => playlist.playlistName === plName
           );
           const urls = await helper.processTitles(found[0].songs);
-          const array2 = urls.splice(Math.round(urls.length / 2));
+          const array2 = urls.splice(Math.round(urls.length / 3));
+          const array3 = array2.splice(Math.round(array2.length / 2));
           message.channel.send(urls);
           message.channel.send(array2);
+          message.channel.send(array3);
         });
         break;
       case "play":
