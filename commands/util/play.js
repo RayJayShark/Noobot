@@ -18,19 +18,30 @@ module.exports = class PlayCommand extends commando.Command {
         servers[message.guild.id] = { queue: [] };
       }
       const server = servers[message.guild.id];
-      if (!args.includes("spotify", "youtube", "youtu.be")) {
+      if (
+        !args.includes("youtube") &&
+        !args.includes("youtu.be") &&
+        !args.includes("spotify")
+      ) {
+        console.log("regular search");
         const url = await helper.searchYoutube(args);
         server.queue.push(url);
-        message.channel.send(`Searching for ${args}`);
+      } else if (args.includes("youtube.com") && args.includes("&list=")) {
+        const playlist = await helper.youtubePlaylist(args);
+        server.queue = playlist;
       } else if (args.includes("spotify")) {
+        console.log("spotify link");
         const url = await helper.getSpotifyUrl(args);
         server.queue.push(url);
-      } else if (!args.includes("spotify")) {
+      } else if (args.includes("youtube") || args.includes("youtu.be")) {
+        console.log("Youtube link");
         server.queue.push(args);
       }
       if (!message.guild.voiceConnection) {
         message.member.voiceChannel.join().then(async connection => {
-          helper.play(connection, message, this.client);
+          if (server.queue.length > 0) {
+            helper.play(connection, message, this.client);
+          }
         });
       }
     } else {

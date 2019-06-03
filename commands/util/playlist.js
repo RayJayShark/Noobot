@@ -47,6 +47,8 @@ module.exports = class PlaylistCommand extends commando.Command {
                       ? args.includes("/playlist/")
                         ? [...(await helper.getSpotifyUrl(url))]
                         : [await helper.getSpotifyUrl(url)]
+                      : args.includes("youtube.com") && args.includes("&list=")
+                      ? [...(await helper.youtubePlaylist(url))]
                       : [url] || []
                   }
                 ]

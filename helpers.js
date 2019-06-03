@@ -1,12 +1,8 @@
 const YTDL = require("ytdl-core");
 const Spotify = require("node-spotify-api");
 const ytSearch = require("yt-search");
+const ytlist = require("youtube-playlist");
 require("dotenv").config();
-
-const opts = {
-  maxResults: 10,
-  key: process.env.YOUTUBE_KEY
-};
 
 const spotify = new Spotify({
   id: process.env.SPOTIFY_ID,
@@ -16,9 +12,9 @@ const spotify = new Spotify({
 module.exports = class Helpers {
   static play(connection, message, client) {
     const server = servers[message.guild.id];
-    YTDL.getBasicInfo(server.queue[0]).then(result => {
+    YTDL.getBasicInfo(server.queue[0]).then(async result => {
       client.user.setActivity(result.title);
-      message.channel.send(`Now playing: ${result.title}`);
+      let sent = await message.channel.send(`Now playing: ${result.title}`);
     });
     server.dispatcher = connection.playStream(
       YTDL(server.queue[0], { filter: "audioonly" })
@@ -84,13 +80,11 @@ module.exports = class Helpers {
         pageStart: 1,
         pageEnd: 2
       };
-
       ytSearch(opts, (err, r) => {
         if (err) {
           reject(err);
         }
         const videos = r.videos;
-        const playlists = r.playlists;
         if ((artist, trackName, duration)) {
           const official = videos.filter(
             video =>
@@ -109,27 +103,32 @@ module.exports = class Helpers {
               : null;
           resolve(newUrl);
         }
-
         const filtered = videos.filter(
           video =>
             (video.seconds - duration < 3 && video.seconds - duration > 0) ||
             (duration - video.seconds < 3 && duration - video.seconds > 0)
         );
-
         let largestFiltered = filtered[0];
         for (let i = 0; i < filtered.length; i++) {
           if (filtered[i].views > largestFiltered.views) {
             largestFiltered = filtered[i];
           }
         }
-
         const newUrl =
           filtered.length > 0
             ? `https://www.youtube.com${largestFiltered.url}`
             : `https://www.youtube.com${videos[0].url}`;
-
         resolve(newUrl);
       });
+    });
+  }
+
+  static async youtubePlaylist(url) {
+    return new Promise(async (resolve, reject) => {
+      const playlistUrls = await ytlist(url, "url").then(res => {
+        return res.data.playlist;
+      });
+      resolve(playlistUrls);
     });
   }
 
