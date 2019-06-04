@@ -38,9 +38,9 @@ module.exports = class PlayCommand extends commando.Command {
         server.queue.push(args);
       }
       if (!message.guild.voiceConnection) {
-        message.member.voiceChannel.join().then(async connection => {
+        message.member.voiceChannel.join().then(connection => {
           if (server.queue.length > 0) {
-            helper.play(connection, message, this.client);
+            helper.play(connection, message);
           }
         });
       }

@@ -157,7 +157,7 @@ module.exports = class PlaylistCommand extends commando.Command {
                 message.member.voiceChannel.join().then(connection => {
                   const server = servers[message.guild.id];
                   server.queue = found[0].songs;
-                  helper.play(connection, message, this.client);
+                  helper.play(connection, message);
                 });
               } else if (message.guild.voiceConnection) {
                 const server = servers[message.guild.id];

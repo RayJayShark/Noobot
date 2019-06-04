@@ -10,21 +10,22 @@ const spotify = new Spotify({
 });
 
 module.exports = class Helpers {
-  static play(connection, message, client) {
+  static play(connection, message) {
     const server = servers[message.guild.id];
+    const streamOptions = { volume: 0.5 };
+    const stream = YTDL(server.queue[0], { filter: "audioonly" });
+    if (server.dispatcher) {
+      streamOptions.volume = server.dispatcher._volume;
+    }
     YTDL.getBasicInfo(server.queue[0]).then(async result => {
-      client.user.setActivity(result.title);
-      let sent = await message.channel.send(`Now playing: ${result.title}`);
+      message.channel.send(`Now playing: ${result.title}`);
     });
-    server.dispatcher = connection.playStream(
-      YTDL(server.queue[0], { filter: "audioonly" })
-    );
+    server.dispatcher = connection.playStream(stream, streamOptions);
     server.queue.shift();
     server.dispatcher.on("end", () => {
       if (server.queue[0]) {
-        this.play(connection, message, client);
+        this.play(connection, message);
       } else {
-        client.user.setActivity(null);
         connection.disconnect();
       }
     });
@@ -89,35 +90,37 @@ module.exports = class Helpers {
           const official = videos.filter(
             video =>
               video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
-              video.title.toLowerCase().includes(trackName.toLowerCase())
+              video.title.toLowerCase().includes(trackName.toLowerCase()) &&
+              !video.title.toLowerCase().includes("live")
           );
-          let largest = official[0];
+
+          let largestOfficial = official[0];
           for (let i = 0; i < official.length; i++) {
-            if (official[i].views > largest.views) {
-              largest = official[i];
+            if (official[i].views > largestOfficial.views) {
+              largestOfficial = official[i];
+            }
+          }
+
+          const filtered = videos.filter(
+            video =>
+              (video.seconds - duration < 3 && video.seconds - duration > 0) ||
+              (duration - video.seconds < 3 && duration - video.seconds > 0)
+          );
+          let largestFiltered = filtered[0];
+          for (let i = 0; i < filtered.length; i++) {
+            if (filtered[i].views > largestFiltered.views) {
+              largestFiltered = filtered[i];
             }
           }
           const newUrl =
             !trackName.toLowerCase().includes("live") && official.length > 0
-              ? `https://www.youtube.com${largest.url}`
-              : null;
+              ? `https://www.youtube.com${largestOfficial.url}`
+              : `https://www.youtube.com${largestFiltered.url}`;
+
           resolve(newUrl);
         }
-        const filtered = videos.filter(
-          video =>
-            (video.seconds - duration < 3 && video.seconds - duration > 0) ||
-            (duration - video.seconds < 3 && duration - video.seconds > 0)
-        );
-        let largestFiltered = filtered[0];
-        for (let i = 0; i < filtered.length; i++) {
-          if (filtered[i].views > largestFiltered.views) {
-            largestFiltered = filtered[i];
-          }
-        }
-        const newUrl =
-          filtered.length > 0
-            ? `https://www.youtube.com${largestFiltered.url}`
-            : `https://www.youtube.com${videos[0].url}`;
+
+        const newUrl = `https://www.youtube.com${videos[0].url}`;
         resolve(newUrl);
       });
     });
