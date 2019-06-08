@@ -13,9 +13,21 @@ module.exports = class QueueCommand extends commando.Command {
 
   async run(message) {
     const server = servers[message.guild.id];
-    const urls = await helper.processTitles(server.queue);
-    const array2 = urls.splice(Math.round(urls.length / 2));
-    message.channel.send(urls);
-    message.channel.send(array2);
+    if (server.queue.length < 50) {
+      const urls = await helper.processTitles(server.queue);
+      if (urls.length <= 25) {
+        message.channel.send(urls);
+      } else if (urls.length > 25 && urls.length < 50) {
+        const splitArray = urls.splice(Math.round(urls.length / 2));
+        message.author.send(urls);
+        message.author.send(splitArray);
+      }
+    } else if (server.queue.length > 50) {
+      message.channel.send(
+        `The queue currently has ${
+          server.queue.length
+        } songs in it. I cannot post the entire list.`
+      );
+    }
   }
 };

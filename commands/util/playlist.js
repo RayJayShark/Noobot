@@ -21,25 +21,33 @@ module.exports = class PlaylistCommand extends commando.Command {
     switch (command) {
       case "create":
         fs.readFile("playlists.json", "utf8", async (err, data) => {
-          if (args.includes("spotify")) {
-            message.channel.send(
-              "Converting Spotify Playlist. This can take some time depending on how many songs are in the playlist. Give me a few seconds..."
-            );
-          }
           const playlists = JSON.parse(data);
           const currentServer = playlists[message.guild.id];
           if (currentServer) {
-            if (currentServer.some(pl => pl.playlistName === plName)) {
+            if (
+              currentServer.some(
+                pl => pl.playlistName.toLowerCase() === plName.toLowerCase()
+              )
+            ) {
               message.channel.send(
                 "Playlist name already exists, pick a different name."
               );
-            } else if (currentServer.some(pl => pl.playlistName !== plName)) {
+            } else if (
+              currentServer.some(
+                pl => pl.playlistName.toLowerCase() !== plName.toLowerCase()
+              )
+            ) {
+              if (args.includes("spotify")) {
+                message.channel.send(
+                  "Converting Spotify Playlist. This can take some time depending on how many songs are in the playlist. Give me a few seconds..."
+                );
+              }
               const copyOfPlaylist = {
                 ...playlists,
                 [message.guild.id]: [
                   ...playlists[message.guild.id],
                   {
-                    playlistName: plName,
+                    playlistName: plName.toLowerCase(),
                     creator: `${message.author.username}#${
                       message.author.discriminator
                     }`,
@@ -134,12 +142,22 @@ module.exports = class PlaylistCommand extends commando.Command {
           const found = playlists[message.guild.id].filter(
             playlist => playlist.playlistName === plName
           );
-          const urls = await helper.processTitles(found[0].songs);
-          const array2 = urls.splice(Math.round(urls.length / 3));
-          const array3 = array2.splice(Math.round(array2.length / 2));
-          message.channel.send(urls);
-          message.channel.send(array2);
-          message.channel.send(array3);
+          if (found[0].songs.length <= 50) {
+            const urls = await helper.processTitles(found[0].songs);
+            if (urls.length <= 25) {
+              message.channel.send(urls);
+            } else if (urls.length > 25 && urls.length <= 50) {
+              const splitArray = urls.splice(Math.round(urls.length / 2));
+              message.author.send(urls);
+              message.author.send(splitArray);
+            }
+          } else if (found[0].songs.length > 50) {
+            message.channel.send(
+              `This playlist has ${
+                found[0].songs.length
+              } songs in it. I cannot post the entire list.`
+            );
+          }
         });
         break;
       case "play":

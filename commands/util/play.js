@@ -23,18 +23,20 @@ module.exports = class PlayCommand extends commando.Command {
         !args.includes("youtu.be") &&
         !args.includes("spotify")
       ) {
-        console.log("regular search");
         const url = await helper.searchYoutube(args);
         server.queue.push(url);
       } else if (args.includes("youtube.com") && args.includes("&list=")) {
         const playlist = await helper.youtubePlaylist(args);
         server.queue = playlist;
       } else if (args.includes("spotify")) {
-        console.log("spotify link");
-        const url = await helper.getSpotifyUrl(args);
-        server.queue.push(url);
+        if (args.includes("/playlist/")) {
+          const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
+          spotyPlaylist.forEach(url => server.queue.push(url));
+        } else {
+          const url = await helper.getSpotifyUrl(args);
+          server.queue.push(url);
+        }
       } else if (args.includes("youtube") || args.includes("youtu.be")) {
-        console.log("Youtube link");
         server.queue.push(args);
       }
       if (!message.guild.voiceConnection) {

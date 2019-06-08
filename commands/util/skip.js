@@ -12,7 +12,7 @@ module.exports = class SkipCommand extends commando.Command {
     });
   }
 
-  run(message) {
+  run() {
     ps.lookup(
       {
         command: "ffmpeg"

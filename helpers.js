@@ -2,6 +2,7 @@ const YTDL = require("ytdl-core");
 const Spotify = require("node-spotify-api");
 const ytSearch = require("yt-search");
 const ytlist = require("youtube-playlist");
+const Discord = require("discord.js");
 require("dotenv").config();
 
 const spotify = new Spotify({
@@ -12,22 +13,34 @@ const spotify = new Spotify({
 module.exports = class Helpers {
   static play(connection, message) {
     const server = servers[message.guild.id];
-    const streamOptions = { volume: 0.5 };
+    const streamOptions = { volume: 0.8 };
     const stream = YTDL(server.queue[0], { filter: "audioonly" });
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
     YTDL.getBasicInfo(server.queue[0]).then(async result => {
-      message.channel.send(`Now playing: ${result.title}`);
-    });
-    server.dispatcher = connection.playStream(stream, streamOptions);
-    server.queue.shift();
-    server.dispatcher.on("end", () => {
-      if (server.queue[0]) {
-        this.play(connection, message);
-      } else {
-        connection.disconnect();
-      }
+      const embed = new Discord.RichEmbed()
+        .setColor("#0099ff")
+        .setTitle(`${result.title}`)
+        .setFooter(
+          this.convertSeconds(result.player_response.videoDetails.lengthSeconds)
+        );
+      let nowPlaying = await message.channel.send(embed);
+      server.dispatcher = connection.playStream(stream, streamOptions);
+      server.queue.shift();
+      server.dispatcher.on("end", () => {
+        if (server.queue[0]) {
+          message.channel
+            .fetchMessage(nowPlaying.author.lastMessageID)
+            .then(mes => mes.delete());
+          this.play(connection, message);
+        } else {
+          message.channel
+            .fetchMessage(nowPlaying.author.lastMessageID)
+            .then(mes => mes.delete());
+          connection.disconnect();
+        }
+      });
     });
   }
 
@@ -106,6 +119,7 @@ module.exports = class Helpers {
               (video.seconds - duration < 3 && video.seconds - duration > 0) ||
               (duration - video.seconds < 3 && duration - video.seconds > 0)
           );
+
           let largestFiltered = filtered[0];
           for (let i = 0; i < filtered.length; i++) {
             if (filtered[i].views > largestFiltered.views) {
@@ -113,9 +127,11 @@ module.exports = class Helpers {
             }
           }
           const newUrl =
-            !trackName.toLowerCase().includes("live") && official.length > 0
+            official.length > 0
               ? `https://www.youtube.com${largestOfficial.url}`
-              : `https://www.youtube.com${largestFiltered.url}`;
+              : filtered.length > 0
+              ? `https://www.youtube.com${largestFiltered.url}`
+              : `https://www.youtube.com${videos[0].url}`;
 
           resolve(newUrl);
         }
@@ -141,5 +157,17 @@ module.exports = class Helpers {
         YTDL.getBasicInfo(url).then(res => `${index + 1}: ${res.title}`)
       )
     );
+  }
+
+  static convertSeconds(sec) {
+    var hrs = Math.floor(sec / 3600);
+    var min = Math.floor((sec - hrs * 3600) / 60);
+    var seconds = sec - hrs * 3600 - min * 60;
+    seconds = Math.round(seconds * 100) / 100;
+
+    var result = hrs < 10 ? "0" + hrs : hrs;
+    result += ":" + (min < 10 ? "0" + min : min);
+    result += ":" + (seconds < 10 ? "0" + seconds : seconds);
+    return result;
   }
 };
