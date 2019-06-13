@@ -21,7 +21,7 @@ module.exports = class Helpers {
     const stream = await YTDL(server.queue[0], {
       quality: "highestaudio",
       filter: "audioonly"
-    }).pipe(fs.createWriteStream(`downloads/${message.id}.mp3`));
+    }).pipe(fs.createWriteStream(`downloads/${Date.now()}.mp3`));
 
     YTDL.getBasicInfo(server.queue[0]).then(async result => {
       const embed = new Discord.RichEmbed()
@@ -38,7 +38,7 @@ module.exports = class Helpers {
       server.queue.shift();
       server.dispatcher.on("end", () => {
         if (server.queue[0]) {
-          fs.unlink(`downloads/${message.id}.mp3`, err => {
+          fs.unlink(stream.path, err => {
             if (err) throw err;
             message.channel
             .fetchMessage(nowPlaying.author.lastMessageID)
@@ -46,7 +46,7 @@ module.exports = class Helpers {
           });
           this.play(connection, message);
         } else {
-          fs.unlink(`downloads/${message.id}.mp3`, err => {
+          fs.unlink(stream.path, err => {
             if (err) throw err;
             message.channel
             .fetchMessage(nowPlaying.author.lastMessageID)
