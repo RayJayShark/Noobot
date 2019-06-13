@@ -56,7 +56,7 @@ module.exports = class Helpers {
             connection.disconnect();
           }
         });
-      }, 1000) 
+      }, 500) 
     });
   }
 
@@ -72,14 +72,27 @@ module.exports = class Helpers {
           });
         resolve(url);
       } else if (args.includes("playlist")) {
-        const playlistId = args.split("/")[6].split("?")[0];
+        const playlistId = args.split("/")[4].split("?")[0];
         const queue = await spotify
           .request(`https://api.spotify.com/v1/playlists/${playlistId}`)
           .then(async data => {
             return await Promise.all(
-              data["tracks"].items.map(track =>
+              data.tracks.items.map(track =>
                 this.createYoutubeSearch(track.track)
               )
+            );
+          })
+          .catch(err => {
+            reject(err);
+          });
+        resolve(queue);
+      } else if (args.includes("album")) {
+        const albumId = args.split("/")[4].split("?")[0]
+        const queue = await spotify
+          .request(`https://api.spotify.com/v1/albums/${albumId}`)
+          .then(async data => {
+            return await Promise.all(
+              this.createYoutubeSearch(data.tracks.items[0], data.release_date.split("-")[0])
             );
           })
           .catch(err => {
@@ -90,12 +103,11 @@ module.exports = class Helpers {
     });
   }
 
-  static createYoutubeSearch(data) {
+  static createYoutubeSearch(data, year) {
     return new Promise(async (resolve, reject) => {
       const trackName = data.name;
-      const album = data["album"].name;
-      const artist = data["album"]["artists"][0].name;
-      const date = data["album"].release_date.split("-")[0];
+      const artist = data["album"] ? data["album"]["artists"][0].name : data.artists[0].name;
+      const date = data["album"] ? data["album"].release_date.split("-")[0] : year;
       const duration = data.duration_ms / 1000;
       const search = `${artist} ${trackName} ${date}`;
       const url = await this.searchYoutube(search, artist, trackName, duration);
@@ -183,8 +195,14 @@ module.exports = class Helpers {
     seconds = Math.round(seconds * 100) / 100;
     
     let result = hrs >= 1 ? hrs + "h" : "";
-    result += " " + (min > 1 ? min + "m" : "0m");
-    result += " " + (seconds > 1 ? seconds + "s" : "0s");
+    result += " " + (min >= 1 ? min + "m" : "0m");
+    result +=
+      " " +
+      (seconds < 10
+        ? "0" + seconds + "s"
+        : seconds >= 10
+        ? seconds + "s"
+        : "0s");
     return result;
   }
 };
