@@ -19,44 +19,45 @@ module.exports = class Helpers {
       streamOptions.volume = server.dispatcher._volume;
     }
 
-    const stream =  YTDL(server.queue[0], {
+    const stream = YTDL(server.queue[0], {
       quality: "highestaudio",
       filter: "audioonly"
-    }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`))
+    }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
 
     YTDL.getBasicInfo(server.queue[0]).then(async result => {
       const embed = new Discord.RichEmbed()
         .setColor("#0099ff")
         .setTitle(`${result.title}`)
-        .setFooter(`Length: ${this.convertSeconds(result.player_response.videoDetails.lengthSeconds)}`);
+        .setFooter(
+          `Length: ${this.convertSeconds(
+            result.player_response.videoDetails.lengthSeconds
+          )}`
+        );
       let nowPlaying = await message.channel.send(embed);
       setTimeout(() => {
-        server.dispatcher = connection.playFile(
-          stream.path,
-          streamOptions
-        );
-        
+        server.dispatcher = connection.playFile(stream.path, streamOptions);
+
         server.queue.shift();
         server.dispatcher.on("end", () => {
           if (server.queue[0]) {
             fs.unlink(stream.path, err => {
               if (err) throw err;
               message.channel
-              .fetchMessage(nowPlaying.author.lastMessageID)
-              .then(mes => mes.delete());
+                .fetchMessage(nowPlaying.author.lastMessageID)
+                .then(mes => mes.delete());
             });
             this.play(connection, message);
           } else {
             fs.unlink(stream.path, err => {
               if (err) throw err;
               message.channel
-              .fetchMessage(nowPlaying.author.lastMessageID)
-              .then(mes => mes.delete());
+                .fetchMessage(nowPlaying.author.lastMessageID)
+                .then(mes => mes.delete());
             });
             connection.disconnect();
           }
         });
-      }, 500) 
+      }, 500);
     });
   }
 
@@ -87,12 +88,14 @@ module.exports = class Helpers {
           });
         resolve(queue);
       } else if (args.includes("album")) {
-        const albumId = args.split("/")[4].split("?")[0]
+        const albumId = args.split("/")[4].split("?")[0];
         const queue = await spotify
           .request(`https://api.spotify.com/v1/albums/${albumId}`)
           .then(async data => {
             return await Promise.all(
-              this.createYoutubeSearch(data.tracks.items[0], data.release_date.split("-")[0])
+              data.tracks.items.map(track =>
+                this.createYoutubeSearch(track, data.release_date.split("-")[0])
+              )
             );
           })
           .catch(err => {
@@ -106,8 +109,12 @@ module.exports = class Helpers {
   static createYoutubeSearch(data, year) {
     return new Promise(async (resolve, reject) => {
       const trackName = data.name;
-      const artist = data["album"] ? data["album"]["artists"][0].name : data.artists[0].name;
-      const date = data["album"] ? data["album"].release_date.split("-")[0] : year;
+      const artist = data["album"]
+        ? data["album"]["artists"][0].name
+        : data.artists[0].name;
+      const date = data["album"]
+        ? data["album"].release_date.split("-")[0]
+        : year;
       const duration = data.duration_ms / 1000;
       const search = `${artist} ${trackName} ${date}`;
       const url = await this.searchYoutube(search, artist, trackName, duration);
@@ -161,7 +168,6 @@ module.exports = class Helpers {
               : filtered.length > 0
               ? `https://www.youtube.com${largestFiltered.url}`
               : `https://www.youtube.com${videos[0].url}`;
-
           resolve(newUrl);
         }
 
@@ -193,7 +199,7 @@ module.exports = class Helpers {
     let min = Math.floor((sec - hrs * 3600) / 60);
     let seconds = sec - hrs * 3600 - min * 60;
     seconds = Math.round(seconds * 100) / 100;
-    
+
     let result = hrs >= 1 ? hrs + "h" : "";
     result += " " + (min >= 1 ? min + "m" : "0m");
     result +=

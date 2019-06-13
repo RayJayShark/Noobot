@@ -32,6 +32,9 @@ module.exports = class PlayCommand extends commando.Command {
         if (args.includes("/playlist/")) {
           const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
           spotyPlaylist.forEach(url => server.queue.push(url));
+        } else if (args.includes("/album/")){
+          const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
+          spotyPlaylist.forEach(url => server.queue.push(url));
         } else {
           const url = await helper.getSpotifyUrl(args);
           server.queue.push(url);
