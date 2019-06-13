@@ -18,43 +18,45 @@ module.exports = class Helpers {
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
-    const stream = await YTDL(server.queue[0], {
+
+    const stream =  YTDL(server.queue[0], {
       quality: "highestaudio",
       filter: "audioonly"
-    }).pipe(fs.createWriteStream(`downloads/${Date.now()}.mp3`));
+    }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`))
 
     YTDL.getBasicInfo(server.queue[0]).then(async result => {
       const embed = new Discord.RichEmbed()
         .setColor("#0099ff")
         .setTitle(`${result.title}`)
-        .setFooter(
-          this.convertSeconds(result.player_response.videoDetails.lengthSeconds)
-        );
+        .setFooter(`Length: ${this.convertSeconds(result.player_response.videoDetails.lengthSeconds)}`);
       let nowPlaying = await message.channel.send(embed);
-      server.dispatcher = await connection.playFile(
-        stream.path,
-        streamOptions
-      );
-      server.queue.shift();
-      server.dispatcher.on("end", () => {
-        if (server.queue[0]) {
-          fs.unlink(stream.path, err => {
-            if (err) throw err;
-            message.channel
-            .fetchMessage(nowPlaying.author.lastMessageID)
-            .then(mes => mes.delete());
-          });
-          this.play(connection, message);
-        } else {
-          fs.unlink(stream.path, err => {
-            if (err) throw err;
-            message.channel
-            .fetchMessage(nowPlaying.author.lastMessageID)
-            .then(mes => mes.delete());
-          });
-          connection.disconnect();
-        }
-      });
+      setTimeout(() => {
+        server.dispatcher = connection.playFile(
+          stream.path,
+          streamOptions
+        );
+        
+        server.queue.shift();
+        server.dispatcher.on("end", () => {
+          if (server.queue[0]) {
+            fs.unlink(stream.path, err => {
+              if (err) throw err;
+              message.channel
+              .fetchMessage(nowPlaying.author.lastMessageID)
+              .then(mes => mes.delete());
+            });
+            this.play(connection, message);
+          } else {
+            fs.unlink(stream.path, err => {
+              if (err) throw err;
+              message.channel
+              .fetchMessage(nowPlaying.author.lastMessageID)
+              .then(mes => mes.delete());
+            });
+            connection.disconnect();
+          }
+        });
+      }, 1000) 
     });
   }
 
@@ -118,7 +120,8 @@ module.exports = class Helpers {
             video =>
               video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
               video.title.toLowerCase().includes(trackName.toLowerCase()) &&
-              !video.title.toLowerCase().includes("live")
+              !video.title.toLowerCase().includes("live") &&
+              !video.title.toLowerCase().includes("conan o'brien")
           );
 
           let largestOfficial = official[0];
@@ -174,14 +177,14 @@ module.exports = class Helpers {
   }
 
   static convertSeconds(sec) {
-    var hrs = Math.floor(sec / 3600);
-    var min = Math.floor((sec - hrs * 3600) / 60);
-    var seconds = sec - hrs * 3600 - min * 60;
+    let hrs = Math.floor(sec / 3600);
+    let min = Math.floor((sec - hrs * 3600) / 60);
+    let seconds = sec - hrs * 3600 - min * 60;
     seconds = Math.round(seconds * 100) / 100;
-
-    var result = hrs < 10 ? "0" + hrs : hrs;
-    result += ":" + (min < 10 ? "0" + min : min);
-    result += ":" + (seconds < 10 ? "0" + seconds : seconds);
+    
+    let result = hrs >= 1 ? hrs + "h" : "";
+    result += " " + (min > 1 ? min + "m" : "0m");
+    result += " " + (seconds > 1 ? seconds + "s" : "0s");
     return result;
   }
 };
