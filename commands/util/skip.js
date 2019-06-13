@@ -1,5 +1,4 @@
 const commando = require("discord.js-commando");
-const ps = require("ps-node");
 const helper = require("../../helpers");
 
 module.exports = class SkipCommand extends commando.Command {
@@ -12,14 +11,8 @@ module.exports = class SkipCommand extends commando.Command {
     });
   }
 
-  run() {
-    ps.lookup(
-      {
-        command: "ffmpeg"
-      },
-      (err, res) => {
-        res.forEach(result => ps.kill(result.pid));
-      }
-    );
+  run(message) {
+    const server = servers[message.guild.id];
+    server.dispatcher.end()
   }
 };

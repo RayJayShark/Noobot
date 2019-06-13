@@ -25,7 +25,7 @@ module.exports = class PlayCommand extends commando.Command {
       ) {
         const url = await helper.searchYoutube(args);
         server.queue.push(url);
-      } else if (args.includes("youtube.com") && args.includes("&list=")) {
+      } else if (args.includes("youtube.com") && args.includes("list")) {
         const playlist = await helper.youtubePlaylist(args);
         server.queue = playlist;
       } else if (args.includes("spotify")) {

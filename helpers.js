@@ -1,4 +1,5 @@
 const YTDL = require("ytdl-core");
+const fs = require("fs");
 const Spotify = require("node-spotify-api");
 const ytSearch = require("yt-search");
 const ytlist = require("youtube-playlist");
@@ -11,13 +12,17 @@ const spotify = new Spotify({
 });
 
 module.exports = class Helpers {
-  static play(connection, message) {
+  static async play(connection, message) {
     const server = servers[message.guild.id];
     const streamOptions = { volume: 0.8 };
-    const stream = YTDL(server.queue[0], { filter: "audioonly" });
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
+    const stream = await YTDL(server.queue[0], {
+      quality: "highestaudio",
+      filter: "audioonly"
+    }).pipe(fs.createWriteStream(`downloads/${message.id}.mp3`));
+
     YTDL.getBasicInfo(server.queue[0]).then(async result => {
       const embed = new Discord.RichEmbed()
         .setColor("#0099ff")
@@ -26,18 +31,27 @@ module.exports = class Helpers {
           this.convertSeconds(result.player_response.videoDetails.lengthSeconds)
         );
       let nowPlaying = await message.channel.send(embed);
-      server.dispatcher = connection.playStream(stream, streamOptions);
+      server.dispatcher = await connection.playFile(
+        stream.path,
+        streamOptions
+      );
       server.queue.shift();
       server.dispatcher.on("end", () => {
         if (server.queue[0]) {
-          message.channel
+          fs.unlink(`downloads/${message.id}.mp3`, err => {
+            if (err) throw err;
+            message.channel
             .fetchMessage(nowPlaying.author.lastMessageID)
             .then(mes => mes.delete());
+          });
           this.play(connection, message);
         } else {
-          message.channel
+          fs.unlink(`downloads/${message.id}.mp3`, err => {
+            if (err) throw err;
+            message.channel
             .fetchMessage(nowPlaying.author.lastMessageID)
             .then(mes => mes.delete());
+          });
           connection.disconnect();
         }
       });
