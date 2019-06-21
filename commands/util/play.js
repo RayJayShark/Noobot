@@ -29,10 +29,7 @@ module.exports = class PlayCommand extends commando.Command {
         const playlist = await helper.youtubePlaylist(args);
         server.queue = playlist;
       } else if (args.includes("spotify")) {
-        if (args.includes("/playlist/")) {
-          const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
-          spotyPlaylist.forEach(url => server.queue.push(url));
-        } else if (args.includes("/album/")){
+        if (args.includes("/playlist/") || args.includes("/album/")) {
           const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
           spotyPlaylist.forEach(url => server.queue.push(url));
         } else {
@@ -45,7 +42,7 @@ module.exports = class PlayCommand extends commando.Command {
       if (!message.guild.voiceConnection) {
         message.member.voiceChannel.join().then(async connection => {
           if (server.queue.length > 0) {
-             helper.play(connection, message);
+            helper.play(connection, message);
           }
         });
       }

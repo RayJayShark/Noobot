@@ -139,9 +139,9 @@ module.exports = class Helpers {
             video =>
               video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
               video.title.toLowerCase().includes(trackName.toLowerCase()) &&
-              !video.title.toLowerCase().includes("live") &&
-              !video.title.toLowerCase().includes("conan o'brien")
+              !video.title.toLowerCase().includes("live", "conan o'brien", "tutorial")
           );
+
 
           let largestOfficial = official[0];
           for (let i = 0; i < official.length; i++) {
@@ -162,6 +162,7 @@ module.exports = class Helpers {
               largestFiltered = filtered[i];
             }
           }
+
           const newUrl =
             official.length > 0
               ? `https://www.youtube.com${largestOfficial.url}`
