@@ -28,6 +28,8 @@ module.exports = class Helpers {
       const embed = new Discord.RichEmbed()
         .setColor("#0099ff")
         .setTitle(`${result.title}`)
+        .setURL(`${server.queue[0]}`)
+        .setAuthor(`Now Playing:`)
         .setFooter(
           `Length: ${this.convertSeconds(
             result.player_response.videoDetails.lengthSeconds
@@ -39,21 +41,13 @@ module.exports = class Helpers {
 
         server.queue.shift();
         server.dispatcher.on("end", () => {
+          fs.unlink(stream.path, err => {
+            if (err) throw err;
+            nowPlaying.delete();
+          });
           if (server.queue[0]) {
-            fs.unlink(stream.path, err => {
-              if (err) throw err;
-              message.channel
-                .fetchMessage(nowPlaying.author.lastMessageID)
-                .then(mes => mes.delete());
-            });
             this.play(connection, message);
           } else {
-            fs.unlink(stream.path, err => {
-              if (err) throw err;
-              message.channel
-                .fetchMessage(nowPlaying.author.lastMessageID)
-                .then(mes => mes.delete());
-            });
             connection.disconnect();
           }
         });
@@ -73,7 +67,7 @@ module.exports = class Helpers {
           });
         resolve(url);
       } else if (args.includes("playlist")) {
-        const playlistId = args.split("/")[4].split("?")[0];
+        const playlistId = args.split("/")[6].split("?")[0];
         const queue = await spotify
           .request(`https://api.spotify.com/v1/playlists/${playlistId}`)
           .then(async data => {
@@ -139,9 +133,10 @@ module.exports = class Helpers {
             video =>
               video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
               video.title.toLowerCase().includes(trackName.toLowerCase()) &&
-              !video.title.toLowerCase().includes("live", "conan o'brien", "tutorial")
+              !video.title
+                .toLowerCase()
+                .includes("live", "conan o'brien", "tutorial")
           );
-
 
           let largestOfficial = official[0];
           for (let i = 0; i < official.length; i++) {
