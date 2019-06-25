@@ -247,11 +247,12 @@ module.exports = class PlaylistCommand extends commando.Command {
                     if (!servers[message.guild.id]) {
                       servers[message.guild.id] = {};
                     }
-                    playlist.get().songs.forEach(song => {
-                      song.update({ QueueId: queue.id, queueId: queue.id });
-                    });
                     message.member.voiceChannel.join().then(connection => {
                       helper.play(connection, message);
+                    });
+                  } else {
+                    playlist.get().songs.forEach(song => {
+                      song.update({ QueueId: queue.id, queueId: queue.id });
                     });
                   }
                 } else {
