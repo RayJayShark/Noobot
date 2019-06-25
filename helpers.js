@@ -39,16 +39,16 @@ module.exports = class Helpers {
             filter: "audioonly"
           }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
 
-          const { title, lengthSeconds } = await this.youTubeApiSearch(
-            firstInQueue
-          );
-
           const embed = new Discord.RichEmbed()
             .setColor("#0099ff")
-            .setTitle(`${title}`)
-            .setURL(`${firstInQueue}`)
+            .setTitle(`${queue.get().songs[0].get().title}`)
+            .setURL(`${queue.get().songs[0].get().url}`)
             .setAuthor(`Now Playing:`)
-            .setFooter(`Length: ${this.convertSeconds(lengthSeconds)}`);
+            .setFooter(
+              `Length: ${this.convertSeconds(
+                queue.get().songs[0].get().lengthSeconds
+              )}`
+            );
 
           let nowPlaying = await message.channel.send(embed);
           setTimeout(() => {
@@ -223,7 +223,7 @@ module.exports = class Helpers {
 
   static youTubeApiSearch(url) {
     return new Promise((resolve, reject) => {
-      const videoId = url.split("=")[1];
+      const videoId = url.match(/(?<=v=)[\w\d]+/);
       request(
         youtubeUrl + videoId + process.env.YOUTUBE_API,
         (error, response, body) => {
