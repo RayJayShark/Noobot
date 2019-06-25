@@ -89,3 +89,6 @@ typings/
 
 # SFTP Info
 sftp.json
+
+#Server Database
+database.sqlite

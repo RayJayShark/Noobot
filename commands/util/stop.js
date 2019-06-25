@@ -22,21 +22,24 @@ module.exports = class StopCommand extends commando.Command {
           models.Queue.findOne({
             where: { serverId: server.id },
             include: "songs"
-          }).then(queue => {
-            queue.get().songs.forEach(song => {
-              if (song) {
-                if (song.get().playlistId === null) {
-                  song.destroy();
-                } else {
-                  song.update({ QueueId: null, queueId: null });
+          })
+            .then(queue => {
+              queue.get().songs.forEach(song => {
+                if (song) {
+                  if (song.get().playlistId === null) {
+                    song.destroy();
+                  } else {
+                    song.update({ QueueId: null, queueId: null });
+                  }
                 }
-              }
+              });
+            })
+            .then(() => {
               setTimeout(() => {
                 const server = servers[message.guild.id];
                 server.dispatcher.end();
               }, 650);
             });
-          });
         });
       }
     } else {

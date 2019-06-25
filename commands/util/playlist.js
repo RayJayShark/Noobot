@@ -82,7 +82,40 @@ module.exports = class PlaylistCommand extends commando.Command {
                   }
                 });
               });
-            } //Regular YouTube Link
+            } else if (url.includes("spotify")) {
+              if (args.includes("/playlist/") || args.includes("/album/")) {
+                const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
+                spotyPlaylist.forEach(async url => {
+                  const {
+                    title,
+                    lengthSeconds
+                  } = await helper.youTubeApiSearch(url);
+                  models.Song.create({
+                    playlistId: playlist.id,
+                    url,
+                    title,
+                    lengthSeconds
+                  });
+                });
+              } else {
+                const url = await helper.getSpotifyUrl(args);
+                const { title, lengthSeconds } = await helper.youTubeApiSearch(
+                  url
+                );
+                models.Song.findOrCreate({
+                  where: {
+                    playlistId: playlist.id,
+                    url
+                  },
+                  defaults: {
+                    title,
+                    lengthSeconds
+                  }
+                });
+              }
+            }
+
+            //Regular YouTube Link
             else {
               models.Song.findOne({
                 where: {
@@ -239,7 +272,6 @@ module.exports = class PlaylistCommand extends commando.Command {
             where: { serverId: server.id },
             include: "songs"
           }).then(playlists => {
-            console.log(playlists.length);
             const embed = new Discord.RichEmbed()
               .setAuthor(`Your Server has ${playlists.length} Playlists.`)
               .setColor("#008000");
