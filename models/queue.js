@@ -9,7 +9,11 @@ module.exports = (sequelize, DataTypes) => {
   );
   Queue.associate = function(models) {
     Queue.belongsTo(models.Server, { foreignKey: "serverId", as: "server" });
-    Queue.hasMany(models.Song, { as: "songs" });
+    Queue.belongsToMany(models.Song, {
+      as: "songs",
+      through: "SongQueues",
+      foreignKey: "queueId"
+    });
   };
   return Queue;
 };

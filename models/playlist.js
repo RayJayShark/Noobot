@@ -12,7 +12,11 @@ module.exports = (sequelize, DataTypes) => {
   );
   Playlist.associate = function(models) {
     Playlist.belongsTo(models.Server, { foreignKey: "serverId", as: "server" });
-    Playlist.hasMany(models.Song, { as: "songs" });
+    Playlist.belongsToMany(models.Song, {
+      as: "songs",
+      through: "SongPlaylists",
+      foreignKey: "playlistId"
+    });
   };
   return Playlist;
 };

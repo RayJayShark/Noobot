@@ -17,73 +17,52 @@ const youtubeUrl = "https://www.googleapis.com/youtube/v3/videos?id=";
 
 module.exports = class Helpers {
   static async play(connection, message) {
-    models.Server.findOrCreate({ where: { guildId: message.guild.id } }).then(
-      ([server]) => {
-        models.Queue.findOrCreate({
-          where: { serverId: server.id },
-          include: "songs"
-        }).then(async ([queue]) => {
-          const firstInQueue =
-            queue.get().songs.length > 0
-              ? queue.get().songs[0].get().url
-              : null;
+    const dbserver = await this.retrieveServer(message.guild.id);
+    let queue = await this.retreieveQueue(dbserver.id);
+    const firstInQueue = queue.songs.length > 0 ? queue.songs[0].get() : null;
+    const server = servers[message.guild.id];
+    const streamOptions = { volume: 0.8 };
+    if (server.dispatcher) {
+      streamOptions.volume = server.dispatcher._volume;
+    }
 
-          const server = servers[message.guild.id];
-          const streamOptions = { volume: 0.8 };
-          if (server.dispatcher) {
-            streamOptions.volume = server.dispatcher._volume;
-          }
+    const stream = YTDL(firstInQueue.url, {
+      quality: "highestaudio",
+      filter: "audioonly"
+    }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
 
-          const stream = YTDL(firstInQueue, {
-            quality: "highestaudio",
-            filter: "audioonly"
-          }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
+    const embed = new Discord.RichEmbed()
+      .setColor("#0099ff")
+      .setTitle(`${firstInQueue.title}`)
+      .setURL(`${firstInQueue.url}`)
+      .setAuthor(`Now Playing:`)
+      .setFooter(`Length: ${this.convertSeconds(firstInQueue.lengthSeconds)}`);
 
-          const embed = new Discord.RichEmbed()
-            .setColor("#0099ff")
-            .setTitle(`${queue.get().songs[0].get().title}`)
-            .setURL(`${queue.get().songs[0].get().url}`)
-            .setAuthor(`Now Playing:`)
-            .setFooter(
-              `Length: ${this.convertSeconds(
-                queue.get().songs[0].get().lengthSeconds
-              )}`
-            );
+    setTimeout(async () => {
+      let nowPlaying = await message.channel.send(embed);
+      server.dispatcher = connection.playFile(stream.path, streamOptions);
+      queue = await this.retreieveQueue(dbserver.id);
+      models.SongQueue.findOne({
+        where: { songId: firstInQueue.id, queueId: queue.id }
+      }).then(join => {
+        if (join) {
+          join.destroy();
+        }
+      });
 
-          let nowPlaying = await message.channel.send(embed);
-          setTimeout(() => {
-            server.dispatcher = connection.playFile(stream.path, streamOptions);
-
-            models.Song.findOne({
-              where: { url: firstInQueue, queueId: queue.id }
-            }).then(song => {
-              if (song.get().playlistId === null) {
-                song.destroy();
-              } else if (song.get().playlistId) {
-                song.update({ queueId: null, QueueId: null });
-              }
-            });
-
-            server.dispatcher.on("end", () => {
-              fs.unlink(stream.path, err => {
-                if (err) throw err;
-                nowPlaying.delete();
-              });
-              models.Queue.findOne({
-                where: { serverId: queue.get().serverId },
-                include: "songs"
-              }).then(queue => {
-                if (queue.get().songs.length > 0) {
-                  this.play(connection, message);
-                } else {
-                  connection.disconnect();
-                }
-              });
-            });
-          }, 2000);
+      server.dispatcher.on("end", async () => {
+        fs.unlink(stream.path, err => {
+          if (err) throw err;
+          nowPlaying.delete();
         });
-      }
-    );
+        queue = await this.retreieveQueue(dbserver.id);
+        if (queue.songs.length > 0) {
+          this.play(connection, message);
+        } else {
+          connection.disconnect();
+        }
+      });
+    }, 2000);
   }
 
   static getSpotifyUrl(args) {
@@ -144,6 +123,115 @@ module.exports = class Helpers {
       const search = `${artist} ${trackName} ${date}`;
       const url = await this.searchYoutube(search, artist, trackName, duration);
       resolve(url);
+    });
+  }
+
+  static async retrieveServer(guildId) {
+    return new Promise((resolve, reject) => {
+      models.Server.findOrCreate({ where: { guildId } }).then(([server]) => {
+        resolve(server.get());
+      });
+    });
+  }
+
+  static async retrievePlaylist(name, serverId) {
+    return new Promise((resolve, reject) => {
+      models.Playlist.findOne({
+        where: { name, serverId },
+        include: "songs"
+      }).then(playlist => {
+        resolve(playlist.get());
+      });
+    });
+  }
+
+  static async retreieveQueue(serverId) {
+    return new Promise((resolve, reject) => {
+      models.Queue.findOrCreate({ where: { serverId }, include: "songs" }).then(
+        ([queue]) => {
+          resolve(queue.get());
+        }
+      );
+    });
+  }
+
+  static async songPlaylistJoin(url, playlist) {
+    models.Song.findOne({
+      where: {
+        url: url
+      }
+    }).then(async song => {
+      if (!song) {
+        const { title, lengthSeconds } = await this.youTubeApiSearch(url);
+
+        models.Song.create({ title, url, lengthSeconds }).then(song => {
+          models.SongPlaylist.findOne({
+            where: {
+              songId: song.get().id,
+              playlistId: playlist.id
+            }
+          }).then(joined => {
+            if (!joined) {
+              models.SongPlaylist.create({
+                songId: song.get().id,
+                playlistId: playlist.id
+              });
+            }
+          });
+        });
+      } else {
+        models.SongPlaylist.findOne({
+          where: {
+            songId: song.get().id,
+            playlistId: playlist.id
+          }
+        }).then(joined => {
+          if (!joined) {
+            models.SongPlaylist.create({
+              songId: song.get().id,
+              playlistId: playlist.id
+            });
+          }
+        });
+      }
+    });
+  }
+
+  static async songQueueJoin(url, queue) {
+    models.Song.findOne({ where: { url } }).then(async song => {
+      if (!song) {
+        const { title, lengthSeconds } = await this.youTubeApiSearch(url);
+
+        models.Song.create({ title, url, lengthSeconds }).then(song => {
+          models.SongQueue.findOne({
+            where: {
+              songId: song.get().id,
+              queueId: queue.id
+            }
+          }).then(joined => {
+            if (!joined) {
+              models.SongQueue.create({
+                songId: song.get().id,
+                queueId: queue.id
+              });
+            }
+          });
+        });
+      } else {
+        models.SongQueue.findOne({
+          where: {
+            songId: song.get().id,
+            queueId: queue.id
+          }
+        }).then(joined => {
+          if (!joined) {
+            models.SongQueue.create({
+              songId: song.get().id,
+              queueId: queue.id
+            });
+          }
+        });
+      }
     });
   }
 
@@ -223,7 +311,7 @@ module.exports = class Helpers {
 
   static youTubeApiSearch(url) {
     return new Promise((resolve, reject) => {
-      const videoId = url.match(/(?<=v=)[\w\d]+/);
+      const videoId = url.match(/(?<=v=)[\D\d]+/);
       request(
         youtubeUrl + videoId + process.env.YOUTUBE_API,
         (error, response, body) => {

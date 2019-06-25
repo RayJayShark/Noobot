@@ -1,5 +1,6 @@
 const commando = require("discord.js-commando");
 const models = require("../../models");
+const helper = require("../../helpers");
 
 module.exports = class StopCommand extends commando.Command {
   constructor(client) {
@@ -16,31 +17,20 @@ module.exports = class StopCommand extends commando.Command {
       if (!message.guild.voiceConnection) {
         return null;
       } else if (message.guild.voiceConnection) {
-        models.Server.findOrCreate({
-          where: { guildId: message.guild.id }
-        }).then(([server]) => {
-          models.Queue.findOne({
-            where: { serverId: server.id },
-            include: "songs"
-          })
-            .then(queue => {
-              queue.get().songs.forEach(song => {
-                if (song) {
-                  if (song.get().playlistId === null) {
-                    song.destroy();
-                  } else {
-                    song.update({ QueueId: null, queueId: null });
-                  }
-                }
-              });
-            })
-            .then(() => {
-              setTimeout(() => {
-                const server = servers[message.guild.id];
-                server.dispatcher.end();
-              }, 650);
+        const dbserver = await helper.retrieveServer(message.guild.id);
+        const queue = await helper.retreieveQueue(dbserver.id);
+        models.SongQueue.findAll({ where: { queueId: queue.id } })
+          .then(joinedQueue => {
+            joinedQueue.forEach(queuedSong => {
+              queuedSong.destroy();
             });
-        });
+          })
+          .then(() => {
+            setTimeout(() => {
+              const server = servers[message.guild.id];
+              server.dispatcher.end();
+            }, 500);
+          });
       }
     } else {
       message.reply("You need to be in a voice channel to stop the song.");

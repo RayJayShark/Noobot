@@ -5,19 +5,18 @@ module.exports = (sequelize, DataTypes) => {
     {
       title: DataTypes.STRING,
       url: DataTypes.STRING,
-      lengthSeconds: DataTypes.INTEGER,
-      playlistId: DataTypes.INTEGER
+      lengthSeconds: DataTypes.INTEGER
     },
     {}
   );
   Song.associate = function(models) {
-    Song.belongsTo(models.Playlist, {
-      foreignKey: "playlistId",
-      as: "playlist"
+    Song.belongsToMany(models.Playlist, {
+      through: "SongPlaylists",
+      foreignKey: "songId"
     });
-    Song.belongsTo(models.Queue, {
-      foreignKey: "queueId",
-      as: "queue"
+    Song.belongsToMany(models.Queue, {
+      through: "SongQueues",
+      foreignKey: "songId"
     });
   };
   return Song;

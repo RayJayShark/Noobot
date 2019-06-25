@@ -17,28 +17,6 @@ module.exports = {
       lengthSeconds: {
         type: Sequelize.INTEGER
       },
-      playlistId: {
-        type: Sequelize.INTEGER,
-        references: {
-          model: {
-            tableName: "Playlists",
-            key: "id"
-          },
-          onUpdate: "CASCADE",
-          onDelete: "SET NULL"
-        }
-      },
-      queueId: {
-        type: Sequelize.INTEGER,
-        references: {
-          model: {
-            tableName: "Queues",
-            key: "id"
-          },
-          onUpdate: "CASCADE",
-          onDelete: "SET NULL"
-        }
-      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE
