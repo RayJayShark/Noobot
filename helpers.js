@@ -3,7 +3,9 @@ const fs = require("fs");
 const Spotify = require("node-spotify-api");
 const ytSearch = require("yt-search");
 const ytlist = require("youtube-playlist");
+const request = require("request");
 const Discord = require("discord.js");
+const models = require("./models");
 require("dotenv").config();
 
 const spotify = new Spotify({
@@ -11,48 +13,77 @@ const spotify = new Spotify({
   secret: process.env.SPOTIFY_SECRET
 });
 
+const youtubeUrl = "https://www.googleapis.com/youtube/v3/videos?id=";
+
 module.exports = class Helpers {
   static async play(connection, message) {
-    const server = servers[message.guild.id];
-    const streamOptions = { volume: 0.8 };
-    if (server.dispatcher) {
-      streamOptions.volume = server.dispatcher._volume;
-    }
+    models.Server.findOrCreate({ where: { guildId: message.guild.id } }).then(
+      ([server]) => {
+        models.Queue.findOrCreate({
+          where: { serverId: server.id },
+          include: "songs"
+        }).then(async ([queue]) => {
+          const firstInQueue =
+            queue.get().songs.length > 0
+              ? queue.get().songs[0].get().url
+              : null;
 
-    const stream = YTDL(server.queue[0], {
-      quality: "highestaudio",
-      filter: "audioonly"
-    }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
-
-    YTDL.getBasicInfo(server.queue[0]).then(async result => {
-      const embed = new Discord.RichEmbed()
-        .setColor("#0099ff")
-        .setTitle(`${result.title}`)
-        .setURL(`${server.queue[0]}`)
-        .setAuthor(`Now Playing:`)
-        .setFooter(
-          `Length: ${this.convertSeconds(
-            result.player_response.videoDetails.lengthSeconds
-          )}`
-        );
-      let nowPlaying = await message.channel.send(embed);
-      setTimeout(() => {
-        server.dispatcher = connection.playFile(stream.path, streamOptions);
-
-        server.queue.shift();
-        server.dispatcher.on("end", () => {
-          fs.unlink(stream.path, err => {
-            if (err) throw err;
-            nowPlaying.delete();
-          });
-          if (server.queue[0]) {
-            this.play(connection, message);
-          } else {
-            connection.disconnect();
+          const server = servers[message.guild.id];
+          const streamOptions = { volume: 0.8 };
+          if (server.dispatcher) {
+            streamOptions.volume = server.dispatcher._volume;
           }
+
+          const stream = YTDL(firstInQueue, {
+            quality: "highestaudio",
+            filter: "audioonly"
+          }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
+
+          const { title, lengthSeconds } = await this.youTubeApiSearch(
+            firstInQueue
+          );
+
+          const embed = new Discord.RichEmbed()
+            .setColor("#0099ff")
+            .setTitle(`${title}`)
+            .setURL(`${firstInQueue}`)
+            .setAuthor(`Now Playing:`)
+            .setFooter(`Length: ${this.convertSeconds(lengthSeconds)}`);
+
+          let nowPlaying = await message.channel.send(embed);
+          setTimeout(() => {
+            server.dispatcher = connection.playFile(stream.path, streamOptions);
+
+            models.Song.findOne({
+              where: { url: firstInQueue, queueId: queue.id }
+            }).then(song => {
+              if (song.get().playlistId === null) {
+                song.destroy();
+              } else if (song.get().playlistId) {
+                song.update({ queueId: null, QueueId: null });
+              }
+            });
+
+            server.dispatcher.on("end", () => {
+              fs.unlink(stream.path, err => {
+                if (err) throw err;
+                nowPlaying.delete();
+              });
+              models.Queue.findOne({
+                where: { serverId: queue.get().serverId },
+                include: "songs"
+              }).then(queue => {
+                if (queue.get().songs.length > 0) {
+                  this.play(connection, message);
+                } else {
+                  connection.disconnect();
+                }
+              });
+            });
+          }, 2000);
         });
-      }, 500);
-    });
+      }
+    );
   }
 
   static getSpotifyUrl(args) {
@@ -188,6 +219,44 @@ module.exports = class Helpers {
         YTDL.getBasicInfo(url).then(res => `${index + 1}: ${res.title}`)
       )
     );
+  }
+
+  static youTubeApiSearch(url) {
+    return new Promise((resolve, reject) => {
+      const videoId = url.split("=")[1];
+      request(
+        youtubeUrl + videoId + process.env.YOUTUBE_API,
+        (error, response, body) => {
+          const result = JSON.parse(body);
+          if (result.items.length === 0) {
+            return;
+          } else {
+            const duration = result.items[0].contentDetails.duration;
+            const hours = duration.match(/\d+H/g);
+            const minutes = duration.match(/\d+M/g);
+            const seconds = duration.match(/\d+S/g);
+            let total = 0;
+
+            if (hours) {
+              total += parseInt(hours[0].split("H")[0]) * 3600;
+            }
+            if (minutes) {
+              total += parseInt(minutes[0].split("M")[0]) * 60;
+            }
+            if (seconds) {
+              total += parseInt(seconds[0].split("S")[0]);
+            }
+
+            const returning = {
+              title: result.items[0].snippet.title,
+              lengthSeconds: total
+            };
+
+            resolve(returning);
+          }
+        }
+      );
+    });
   }
 
   static convertSeconds(sec) {

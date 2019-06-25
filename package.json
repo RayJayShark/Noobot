@@ -16,6 +16,8 @@
     "node-opus": "^0.3.2",
     "node-spotify-api": "^1.1.1",
     "ps-node": "^0.1.6",
+    "sequelize": "^5.8.12",
+    "sequelize-cli": "^5.5.0",
     "sqlite": "^3.0.3",
     "youtube-playlist": "^1.0.2",
     "yt-search": "^0.4.1",
