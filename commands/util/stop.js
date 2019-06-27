@@ -29,7 +29,7 @@ module.exports = class StopCommand extends commando.Command {
             setTimeout(() => {
               const server = servers[message.guild.id];
               server.dispatcher.end();
-            }, 500);
+            }, 100);
           });
       }
     } else {
