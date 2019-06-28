@@ -70,6 +70,21 @@ module.exports = class PlaylistCommand extends commando.Command {
             helper.songPlaylistJoin(url, playlist);
           }
         }
+        //Currently playing song
+        else if (url === "nowplaying") {
+          const queue = await helper.retrieveQueue(server.id);
+          playlist = await helper.retrievePlaylist(
+            plName.toLowerCase(),
+            server.id
+          );
+
+          models.SongPlaylist.findOrCreate({
+            where: {
+              songId: queue.songs[0].get().id,
+              playlistId: playlist.id
+            }
+          });
+        }
         //Regular YouTube Link
         else {
           helper.songPlaylistJoin(url, playlist);

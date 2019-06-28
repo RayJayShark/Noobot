@@ -23,6 +23,7 @@ module.exports = class QueueCommand extends commando.Command {
       }).then(queue => {
         let totalLength = 0;
         const embed = new Discord.RichEmbed().setColor("#0099ff");
+        queue.get().songs.shift();
         queue.get().songs.forEach((song, index) => {
           embed.addField(
             `${index + 1}. ${song.title}`,

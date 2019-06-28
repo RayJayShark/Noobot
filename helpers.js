@@ -38,29 +38,33 @@ module.exports = class Helpers {
       .setAuthor(`Now Playing:`)
       .setFooter(`Length: ${this.convertSeconds(firstInQueue.lengthSeconds)}`);
 
-    setTimeout(async () => {
-      let nowPlaying = await message.channel.send(embed);
-      server.dispatcher = connection.playFile(stream.path, streamOptions);
-      queue = await this.retrieveQueue(dbserver.id);
-      models.SongQueue.findOne({
-        where: { songId: firstInQueue.id, queueId: queue.id }
-      }).then(join => {
-        if (join) {
-          join.destroy();
-        }
-      });
+    message.channel.send(embed).then(message => {
+      message.delete(10000);
+    });
 
+    setTimeout(async () => {
+      server.dispatcher = connection.playFile(stream.path, streamOptions);
       server.dispatcher.on("end", async () => {
-        fs.unlink(stream.path, err => {
-          if (err) throw err;
-          nowPlaying.delete();
+        models.SongQueue.findOne({
+          where: { songId: firstInQueue.id, queueId: queue.id }
+        }).then(join => {
+          if (join) {
+            join.destroy();
+          }
         });
-        queue = await this.retrieveQueue(dbserver.id);
-        if (queue.songs.length > 0) {
-          this.play(connection, message);
-        } else {
-          connection.disconnect();
-        }
+
+        fs.unlink(stream.path, err => {
+          if (err) console.log(err);
+        });
+
+        setTimeout(async () => {
+          queue = await this.retrieveQueue(dbserver.id);
+          if (queue.songs.length > 0) {
+            this.play(connection, message);
+          } else {
+            connection.disconnect();
+          }
+        }, 1000);
       });
     }, 2000);
   }
