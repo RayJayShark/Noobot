@@ -26,10 +26,7 @@ module.exports = class PlayCommand extends commando.Command {
     }
 
     message.channel.send(
-      `<@${message.author.id}> you rolled ${results.substring(
-        0,
-        results.length - 2
-      )}`
+      `<@${message.author.id}> you rolled ${results.slice(0, -2)}`
     );
   }
 };

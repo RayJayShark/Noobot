@@ -18,7 +18,7 @@ module.exports = class StopCommand extends commando.Command {
         return null;
       } else if (message.guild.voiceConnection) {
         const dbserver = await helper.retrieveServer(message.guild.id);
-        const queue = await helper.retreieveQueue(dbserver.id);
+        const queue = await helper.retrieveQueue(dbserver.id);
         models.SongQueue.findAll({ where: { queueId: queue.id } })
           .then(joinedQueue => {
             joinedQueue.forEach(queuedSong => {

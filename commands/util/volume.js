@@ -20,6 +20,9 @@ module.exports = class SkipCommand extends commando.Command {
       } else if (volume < 0) {
         message.channel.send("Cannot go below 0% Volume.");
       } else if (volume >= 0 && volume <= 100) {
+        message.channel.send(`Volume changed to ${args}%`).then(message => {
+          message.delete(2000);
+        });
         server.dispatcher._volume = volume / 100;
       }
     } else {

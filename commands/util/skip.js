@@ -1,5 +1,4 @@
 const commando = require("discord.js-commando");
-const helper = require("../../helpers");
 
 module.exports = class SkipCommand extends commando.Command {
   constructor(client) {
@@ -13,6 +12,6 @@ module.exports = class SkipCommand extends commando.Command {
 
   run(message) {
     const server = servers[message.guild.id];
-    server.dispatcher.end()
+    server.dispatcher.end();
   }
 };

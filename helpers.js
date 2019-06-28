@@ -18,7 +18,7 @@ const youtubeUrl = "https://www.googleapis.com/youtube/v3/videos?id=";
 module.exports = class Helpers {
   static async play(connection, message) {
     const dbserver = await this.retrieveServer(message.guild.id);
-    let queue = await this.retreieveQueue(dbserver.id);
+    let queue = await this.retrieveQueue(dbserver.id);
     const firstInQueue = queue.songs.length > 0 ? queue.songs[0].get() : null;
     const server = servers[message.guild.id];
     const streamOptions = { volume: 0.8 };
@@ -41,7 +41,7 @@ module.exports = class Helpers {
     setTimeout(async () => {
       let nowPlaying = await message.channel.send(embed);
       server.dispatcher = connection.playFile(stream.path, streamOptions);
-      queue = await this.retreieveQueue(dbserver.id);
+      queue = await this.retrieveQueue(dbserver.id);
       models.SongQueue.findOne({
         where: { songId: firstInQueue.id, queueId: queue.id }
       }).then(join => {
@@ -55,7 +55,7 @@ module.exports = class Helpers {
           if (err) throw err;
           nowPlaying.delete();
         });
-        queue = await this.retreieveQueue(dbserver.id);
+        queue = await this.retrieveQueue(dbserver.id);
         if (queue.songs.length > 0) {
           this.play(connection, message);
         } else {
@@ -77,7 +77,7 @@ module.exports = class Helpers {
           });
         resolve(url);
       } else if (args.includes("playlist")) {
-        const playlistId = args.split("/")[6].split("?")[0];
+        const playlistId = args.split("/")[4].split("?")[0];
         const queue = await spotify
           .request(`https://api.spotify.com/v1/playlists/${playlistId}`)
           .then(async data => {
@@ -113,14 +113,13 @@ module.exports = class Helpers {
   static createYoutubeSearch(data, year) {
     return new Promise(async (resolve, reject) => {
       const trackName = data.name;
-      const artist = data["album"]
-        ? data["album"]["artists"][0].name
-        : data.artists[0].name;
+      const artist = data.artists[0].name;
       const date = data["album"]
         ? data["album"].release_date.split("-")[0]
         : year;
       const duration = data.duration_ms / 1000;
-      const search = `${artist} ${trackName} ${date}`;
+      const albumName = data.album.name;
+      const search = `${artist} ${trackName} ${albumName} ${date}`;
       const url = await this.searchYoutube(search, artist, trackName, duration);
       resolve(url);
     });
@@ -140,12 +139,16 @@ module.exports = class Helpers {
         where: { name, serverId },
         include: "songs"
       }).then(playlist => {
-        resolve(playlist.get());
+        if (!playlist) {
+          resolve(null);
+        } else {
+          resolve(playlist);
+        }
       });
     });
   }
 
-  static async retreieveQueue(serverId) {
+  static async retrieveQueue(serverId) {
     return new Promise((resolve, reject) => {
       models.Queue.findOrCreate({ where: { serverId }, include: "songs" }).then(
         ([queue]) => {

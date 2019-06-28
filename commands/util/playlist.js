@@ -60,8 +60,8 @@ module.exports = class PlaylistCommand extends commando.Command {
         }
         //Spotify Album or Playlist
         else if (url.includes("spotify")) {
-          if (args.includes("/playlist/") || args.includes("/album/")) {
-            const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
+          if (url.includes("/playlist/") || url.includes("/album/")) {
+            const spotyPlaylist = [...(await helper.getSpotifyUrl(url))];
             spotyPlaylist.forEach(async url => {
               helper.songPlaylistJoin(url, playlist);
             });
@@ -112,7 +112,7 @@ module.exports = class PlaylistCommand extends commando.Command {
         );
         let totalLength = 0;
         const embed = new Discord.RichEmbed().setColor("#0099ff");
-        playlist.songs.forEach((song, index) => {
+        playlist.get().songs.forEach((song, index) => {
           embed.addField(
             `${index + 1}. ${song.title}`,
             `${helper.convertSeconds(song.lengthSeconds)} - [Link](${song.url})`
@@ -120,12 +120,12 @@ module.exports = class PlaylistCommand extends commando.Command {
           totalLength += song.lengthSeconds;
         });
         embed.setAuthor(
-          `Total Songs:  ${playlist.songs.length}   -   ${helper.convertSeconds(
-            totalLength
-          )}`
+          `Total Songs:  ${
+            playlist.get().songs.length
+          }   -   ${helper.convertSeconds(totalLength)}`
         );
         message.channel.send(embed).then(message => {
-          if (playlist.songs.length <= 10) {
+          if (playlist.get().songs.length <= 10) {
             const filter = reaction => {
               return ["❌"].includes(reaction.emoji.name);
             };
@@ -164,8 +164,8 @@ module.exports = class PlaylistCommand extends commando.Command {
                 helper.play(connection, message);
               });
             }
-            playlist.songs.forEach(async song => {
-              const queue = await helper.retreieveQueue(server.id);
+            playlist.get().songs.forEach(async song => {
+              const queue = await helper.retrieveQueue(server.id);
               models.SongQueue.findOne({
                 where: { songId: song.get().id, queueId: queue.id }
               }).then(joined => {
@@ -200,6 +200,76 @@ module.exports = class PlaylistCommand extends commando.Command {
           });
           message.channel.send(embed);
         });
+        break;
+      case "delete":
+        playlist = await helper.retrievePlaylist(
+          plName.toLowerCase(),
+          server.id
+        );
+
+        if (playlist && playlist.get().createdBy === message.author.id) {
+          const filter = (reaction, user) => {
+            return (
+              ["👍", "👎"].includes(reaction.emoji.name) &&
+              user.id === message.author.id
+            );
+          };
+
+          const confirm = await message.channel.send(
+            `<@${
+              message.author.id
+            }> Are you sure you want to delete \`${plName}\`?`
+          );
+
+          confirm.react("👍").then(() => {
+            confirm.react("👎");
+          });
+
+          confirm
+            .awaitReactions(filter, {
+              max: 1,
+              time: 10000,
+              errors: ["time"]
+            })
+            .then(collected => {
+              const reaction = collected.first();
+
+              if (reaction.emoji.name === "👍") {
+                models.SongPlaylist.findAll({
+                  where: { playlistId: playlist.id }
+                })
+                  .then(join => {
+                    if (join.length > 0) {
+                      join.forEach(songInPlaylist => {
+                        songInPlaylist.destroy();
+                      });
+                    }
+                  })
+                  .then(() => {
+                    playlist.destroy();
+                  })
+                  .then(() => {
+                    message.channel
+                      .send(`\`${plName}\` was successfully deleted!`)
+                      .then(message => {
+                        message.delete(3000);
+                        confirm.delete(3000);
+                      });
+                  });
+              } else {
+                message.channel
+                  .send("Okay, I won't delete the playlist.")
+                  .then(message => {
+                    message.delete(3000);
+                    confirm.delete(3000);
+                  });
+              }
+            });
+        } else {
+          message
+            .reply("Only the creator of the playlist can delete it.")
+            .then(message => message.delete(3000));
+        }
         break;
     }
   }

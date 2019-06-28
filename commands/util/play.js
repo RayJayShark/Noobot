@@ -16,7 +16,7 @@ module.exports = class PlayCommand extends commando.Command {
   async run(message, args) {
     if (message.member.voiceChannel) {
       const dbserver = await helper.retrieveServer(message.guild.id);
-      let queue = await helper.retreieveQueue(dbserver.id);
+      let queue = await helper.retrieveQueue(dbserver.id);
       if (!servers[message.guild.id]) {
         servers[message.guild.id] = {};
       }
@@ -54,7 +54,7 @@ module.exports = class PlayCommand extends commando.Command {
       }
       if (!message.guild.voiceConnection) {
         message.member.voiceChannel.join().then(async connection => {
-          queue = await helper.retreieveQueue(dbserver.id);
+          queue = await helper.retrieveQueue(dbserver.id);
           if (queue.songs.length > 0) {
             helper.play(connection, message);
           }
