@@ -264,6 +264,9 @@ module.exports = class PlaylistCommand extends commando.Command {
                     confirm.delete(3000);
                   });
               }
+            })
+            .catch(() => {
+              message.delete();
             });
         } else {
           message

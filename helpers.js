@@ -238,6 +238,40 @@ module.exports = class Helpers {
     });
   }
 
+  static ytSearchWithChoice(search) {
+    return new Promise((resolve, reject) => {
+      const opts = {
+        query: search,
+        pageStart: 1,
+        pageEnd: 2
+      };
+      ytSearch(opts, (err, r) => {
+        if (err) {
+          reject(err);
+        }
+        const videos = r.videos;
+
+        resolve([
+          {
+            title: videos[0].title,
+            url: `https://www.youtube.com${videos[0].url}`,
+            lengthSeconds: videos[0].seconds
+          },
+          {
+            title: videos[1].title,
+            url: `https://www.youtube.com${videos[1].url}`,
+            lengthSeconds: videos[1].seconds
+          },
+          {
+            title: videos[2].title,
+            url: `https://www.youtube.com${videos[2].url}`,
+            lengthSeconds: videos[2].seconds
+          }
+        ]);
+      });
+    });
+  }
+
   static searchYoutube(search, artist, trackName, duration) {
     return new Promise((resolve, reject) => {
       const opts = {
