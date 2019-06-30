@@ -41,9 +41,43 @@ module.exports = class SkipCommand extends commando.Command {
       const sent = await message.channel.send(embed);
 
       sent.react("1⃣").then(() => {
-        sent.react("2⃣").then(() => {
-          sent.react("3⃣");
-        });
+        sent
+          .react("2⃣")
+          .then(() => {
+            sent.react("3⃣");
+          })
+          .then(() => {
+            sent
+              .awaitReactions(filter, {
+                max: 1,
+                time: 7000,
+                errors: ["time"]
+              })
+              .then(collected => {
+                const reaction = collected.first();
+                let arrIndex;
+                if (reaction.emoji.name === "1⃣") {
+                  arrIndex = 0;
+                } else if (reaction.emoji.name === "2⃣") {
+                  arrIndex = 1;
+                } else if (reaction.emoji.name === "3⃣") {
+                  arrIndex = 2;
+                }
+                if (!message.guild.voiceConnection) {
+                  if (!servers[message.guild.id]) {
+                    servers[message.guild.id] = {};
+                  }
+                  message.member.voiceChannel.join().then(connection => {
+                    helper.play(connection, message);
+                  });
+                }
+                helper.songQueueJoin(threeResults[arrIndex].url, queue);
+                sent.delete(100);
+              })
+              .catch(err => {
+                sent.delete();
+              });
+          });
       });
 
       const filter = (reaction, user) => {
@@ -52,37 +86,6 @@ module.exports = class SkipCommand extends commando.Command {
           user.id === message.author.id
         );
       };
-
-      sent
-        .awaitReactions(filter, {
-          max: 1,
-          time: 15000,
-          errors: ["time"]
-        })
-        .then(collected => {
-          const reaction = collected.first();
-          let arrIndex;
-          if (reaction.emoji.name === "1⃣") {
-            arrIndex = 0;
-          } else if (reaction.emoji.name === "2⃣") {
-            arrIndex = 1;
-          } else if (reaction.emoji.name === "3⃣") {
-            arrIndex = 2;
-          }
-          if (!message.guild.voiceConnection) {
-            if (!servers[message.guild.id]) {
-              servers[message.guild.id] = {};
-            }
-            message.member.voiceChannel.join().then(connection => {
-              helper.play(connection, message);
-            });
-          }
-          helper.songQueueJoin(threeResults[arrIndex].url, queue);
-          sent.delete(1000);
-        })
-        .catch(() => {
-          sent.delete();
-        });
     } else {
       message.reply("You need to be in a voice channel.");
     }

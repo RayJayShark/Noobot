@@ -19,38 +19,39 @@ module.exports = class Helpers {
   static async play(connection, message) {
     const dbserver = await this.retrieveServer(message.guild.id);
     let queue = await this.retrieveQueue(dbserver.id);
-    const firstInQueue = queue.songs.length > 0 ? queue.songs[0].get() : null;
+    const firstInQueue = queue.songs[0].get();
     const server = servers[message.guild.id];
     const streamOptions = { volume: 0.8 };
+    let stream, embed;
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
 
-    const stream = YTDL(firstInQueue.url, {
-      quality: "highestaudio",
-      filter: "audioonly"
-    }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
+    setTimeout(() => {
+      stream = YTDL(firstInQueue.url, {
+        quality: "highestaudio",
+        filter: "audioonly"
+      }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
 
-    const embed = new Discord.RichEmbed()
-      .setColor("#0099ff")
-      .setTitle(`${firstInQueue.title}`)
-      .setURL(`${firstInQueue.url}`)
-      .setAuthor(`Now Playing:`)
-      .setFooter(`Length: ${this.convertSeconds(firstInQueue.lengthSeconds)}`);
+      embed = new Discord.RichEmbed()
+        .setColor("#0099ff")
+        .setTitle(`${firstInQueue.title}`)
+        .setURL(`${firstInQueue.url}`)
+        .setAuthor(`Now Playing:`)
+        .setFooter(
+          `Length: ${this.convertSeconds(firstInQueue.lengthSeconds)}`
+        );
 
-    message.channel.send(embed).then(message => {
-      message.delete(10000);
-    });
+      message.channel.send(embed).then(message => {
+        message.delete(10000);
+      });
+    }, 500);
 
     setTimeout(async () => {
       server.dispatcher = connection.playFile(stream.path, streamOptions);
       server.dispatcher.on("end", async () => {
-        models.SongQueue.findOne({
+        models.SongQueue.destroy({
           where: { songId: firstInQueue.id, queueId: queue.id }
-        }).then(join => {
-          if (join) {
-            join.destroy();
-          }
         });
 
         fs.unlink(stream.path, err => {
@@ -102,7 +103,11 @@ module.exports = class Helpers {
           .then(async data => {
             return await Promise.all(
               data.tracks.items.map(track =>
-                this.createYoutubeSearch(track, data.release_date.split("-")[0])
+                this.createYoutubeSearch(
+                  track,
+                  data.release_date.split("-")[0],
+                  data.name
+                )
               )
             );
           })
@@ -114,7 +119,7 @@ module.exports = class Helpers {
     });
   }
 
-  static createYoutubeSearch(data, year) {
+  static createYoutubeSearch(data, year, album) {
     return new Promise(async (resolve, reject) => {
       const trackName = data.name;
       const artist = data.artists[0].name;
@@ -122,7 +127,7 @@ module.exports = class Helpers {
         ? data["album"].release_date.split("-")[0]
         : year;
       const duration = data.duration_ms / 1000;
-      const albumName = data.album.name;
+      const albumName = album ? album : data.album.name;
       const search = `${artist} ${trackName} ${albumName} ${date}`;
       const url = await this.searchYoutube(search, artist, trackName, duration);
       resolve(url);
