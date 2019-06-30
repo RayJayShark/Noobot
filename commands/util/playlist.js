@@ -180,14 +180,6 @@ module.exports = class PlaylistCommand extends commando.Command {
         );
         if (playlist) {
           if (message.member.voiceChannel) {
-            if (!message.guild.voiceConnection) {
-              if (!servers[message.guild.id]) {
-                servers[message.guild.id] = {};
-              }
-              message.member.voiceChannel.join().then(connection => {
-                helper.play(connection, message);
-              });
-            }
             playlist.get().songs.forEach(async song => {
               const queue = await helper.retrieveQueue(server.id);
               models.SongQueue.findOne({
@@ -201,6 +193,18 @@ module.exports = class PlaylistCommand extends commando.Command {
                 }
               });
             });
+            if (!message.guild.voiceConnection) {
+              if (!servers[message.guild.id]) {
+                servers[message.guild.id] = {};
+              }
+              helper.retrieveQueue(server.id).then(queue => {
+                if (queue) {
+                  message.member.voiceChannel.join().then(connection => {
+                    helper.play(connection, message);
+                  });
+                }
+              })
+            }
           } else {
             message.reply("You need to be in a voice channel.");
           }

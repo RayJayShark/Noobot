@@ -18,42 +18,46 @@ const youtubeUrl = "https://www.googleapis.com/youtube/v3/videos?id=";
 module.exports = class Helpers {
   static async play(connection, message) {
     const dbserver = await this.retrieveServer(message.guild.id);
-    let queue = await this.retrieveQueue(dbserver.id);
-    const firstInQueue = queue.songs[0].get();
     const server = servers[message.guild.id];
     const streamOptions = { volume: 0.8 };
-    let stream, embed;
+    let stream, embed, queue;
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
 
     setTimeout(() => {
-      stream = YTDL(firstInQueue.url, {
-        quality: "highestaudio",
-        filter: "audioonly"
-      }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
-
-      embed = new Discord.RichEmbed()
-        .setColor("#0099ff")
-        .setTitle(`${firstInQueue.title}`)
-        .setURL(`${firstInQueue.url}`)
-        .setAuthor(`Now Playing:`)
-        .setFooter(
-          `Length: ${this.convertSeconds(firstInQueue.lengthSeconds)}`
-        );
-
-      message.channel.send(embed).then(message => {
-        message.delete(10000);
-      });
+      this.retrieveQueue(dbserver.id).then(found => {
+        stream = YTDL(found.songs[0].get().url, {
+          quality: "highestaudio",
+          filter: "audioonly"
+        }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
+  
+        embed = new Discord.RichEmbed()
+          .setColor("#0099ff")
+          .setTitle(`${found.songs[0].get().title}`)
+          .setURL(`${found.songs[0].get().url}`)
+          .setAuthor(`Now Playing:`)
+          .setFooter(
+            `Length: ${this.convertSeconds(found.songs[0].get().lengthSeconds)}`
+          );
+  
+        message.channel.send(embed).then(message => {
+          message.delete(10000);
+        });
+      })
     }, 500);
 
     setTimeout(async () => {
       server.dispatcher = connection.playFile(stream.path, streamOptions);
-      server.dispatcher.on("end", async () => {
-        models.SongQueue.destroy({
-          where: { songId: firstInQueue.id, queueId: queue.id }
-        });
-
+      server.dispatcher.on("end", async (reason) => {
+        if (reason === "user" || reason === "stream"){
+          this.retrieveQueue(dbserver.id).then(queue => {
+            models.SongQueue.destroy({
+              where: { songId: queue.songs[0].get().id, queueId: queue.id }
+            });
+          })
+        }        
+        
         fs.unlink(stream.path, err => {
           if (err) console.log(err);
         });
@@ -61,7 +65,7 @@ module.exports = class Helpers {
         setTimeout(async () => {
           queue = await this.retrieveQueue(dbserver.id);
           if (queue.songs.length > 0) {
-            this.play(connection, message);
+            this.play(connection, message, queue);
           } else {
             connection.disconnect();
           }
@@ -128,13 +132,13 @@ module.exports = class Helpers {
         : year;
       const duration = data.duration_ms / 1000;
       const albumName = album ? album : data.album.name;
-      const search = `${artist} ${trackName}`;
-      const url = await this.searchYoutube(search, artist, trackName, duration);
+      const search = `${trackName} ${albumName} ${artist}`;
+      const url = await this.searchYoutube(search, artist, trackName, duration, albumName);
       resolve(url);
     });
   }
 
-  static searchYoutube(search, artist, trackName, duration) {
+  static searchYoutube(search, artist, trackName, duration, albumName) {
     return new Promise((resolve, reject) => {
       const opts = {
         query: search,
@@ -146,27 +150,20 @@ module.exports = class Helpers {
           reject(err);
         }
         const videos = r.videos;
-        if ((trackName, duration)) {
+        if ((artist, trackName, duration, albumName)) {
           const official = videos.filter(video => {
-            const videoTitle = video.title.match(/[A-Z]+/gi).join(" ");
-            const searchTitle = trackName.match(/[A-Z]+/gi).join(" ");
+            const videoTitle = video.title.match(/[A-Z0-9]+/gi).join(" ");
+            const searchTitle = trackName.match(/[A-Z0-9]+/gi);
 
             return (
-              (videoTitle.includes(searchTitle) &&
+              (searchTitle.some(word => videoTitle.includes(word)) &&
                 video.seconds - duration <= 2 &&
                 video.seconds - duration >= 0) ||
-              (videoTitle.includes(searchTitle) &&
+              (searchTitle.some(word => videoTitle.includes(word)) &&
                 duration - video.seconds <= 2 &&
                 duration - video.seconds >= 0)
             );
           });
-
-          let largestOfficial = official[0];
-          for (let i = 0; i < official.length; i++) {
-            if (official[i].views > largestOfficial.views) {
-              largestOfficial = official[i];
-            }
-          }
 
           const filtered = videos.filter(
             video =>
@@ -183,7 +180,7 @@ module.exports = class Helpers {
 
           const newUrl =
             official.length > 0
-              ? `https://www.youtube.com${largestOfficial.url}`
+              ? `https://www.youtube.com${official[0].url}`
               : filtered.length > 0
               ? `https://www.youtube.com${largestFiltered.url}`
               : `https://www.youtube.com${videos[0].url}`;

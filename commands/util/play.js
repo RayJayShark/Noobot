@@ -53,10 +53,11 @@ module.exports = class PlayCommand extends commando.Command {
         helper.songQueueJoin(args, queue);
       }
       if (!message.guild.voiceConnection) {
-        message.member.voiceChannel.join().then(async connection => {
-          queue = await helper.retrieveQueue(dbserver.id);
-          if (queue.songs.length > 0) {
-            helper.play(connection, message);
+        helper.retrieveQueue(dbserver.id).then(queue => {
+          if (queue) {
+            message.member.voiceChannel.join().then(connection => {
+              helper.play(connection, message);
+            });
           }
         });
       }

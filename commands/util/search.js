@@ -67,9 +67,13 @@ module.exports = class SkipCommand extends commando.Command {
                   if (!servers[message.guild.id]) {
                     servers[message.guild.id] = {};
                   }
-                  message.member.voiceChannel.join().then(connection => {
-                    helper.play(connection, message);
-                  });
+                  helper.retrieveQueue(server.id).then(queue => {
+                    if (queue){
+                      message.member.voiceChannel.join().then(connection => {
+                        helper.play(connection, message);
+                      });
+                    }
+                  })
                 }
                 helper.songQueueJoin(threeResults[arrIndex].url, queue);
                 sent.delete(100);
