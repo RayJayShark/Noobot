@@ -58,14 +58,23 @@ module.exports = class PlaylistCommand extends commando.Command {
             helper.songPlaylistJoin(url, playlist);
           });
         }
-        //Spotify Album or Playlist
+        //Spotify Playlist
         else if (url.includes("spotify")) {
-          if (url.includes("/playlist/") || url.includes("/album/")) {
+          if (url.includes("/playlist/")) {
             const spotyPlaylist = [...(await helper.getSpotifyUrl(url))];
             spotyPlaylist.forEach(async url => {
               helper.songPlaylistJoin(url, playlist);
             });
-          } else {
+          }
+          //Spotify Album
+          else if (url.includes("/album/")) {
+            const spotyAlbum = [...(await helper.getSpotifyUrl(url))];
+            for (let i = 0; i < spotyAlbum.length; i++) {
+              helper.songPlaylistJoin(spotyAlbum[i], playlist);
+            }
+          }
+          //Regular Spotify Link
+          else {
             const url = await helper.getSpotifyUrl(args);
             helper.songPlaylistJoin(url, playlist);
           }
@@ -250,16 +259,9 @@ module.exports = class PlaylistCommand extends commando.Command {
               const reaction = collected.first();
 
               if (reaction.emoji.name === "👍") {
-                models.SongPlaylist.findAll({
+                models.SongPlaylist.destroy({
                   where: { playlistId: playlist.id }
                 })
-                  .then(join => {
-                    if (join.length > 0) {
-                      join.forEach(songInPlaylist => {
-                        songInPlaylist.destroy();
-                      });
-                    }
-                  })
                   .then(() => {
                     playlist.destroy();
                   })

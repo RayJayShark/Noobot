@@ -128,9 +128,80 @@ module.exports = class Helpers {
         : year;
       const duration = data.duration_ms / 1000;
       const albumName = album ? album : data.album.name;
-      const search = `${artist} ${trackName} ${albumName} ${date}`;
+      const search = `${artist} ${trackName}`;
       const url = await this.searchYoutube(search, artist, trackName, duration);
       resolve(url);
+    });
+  }
+
+  static searchYoutube(search, artist, trackName, duration) {
+    return new Promise((resolve, reject) => {
+      const opts = {
+        query: search,
+        pageStart: 1,
+        pageEnd: 2
+      };
+      ytSearch(opts, (err, r) => {
+        if (err) {
+          reject(err);
+        }
+        const videos = r.videos;
+        if ((trackName, duration)) {
+          const official = videos.filter(video => {
+            const videoTitle = video.title.match(/[A-Z]+/gi).join(" ");
+            const searchTitle = trackName.match(/[A-Z]+/gi).join(" ");
+
+            return (
+              (videoTitle.includes(searchTitle) &&
+                video.seconds - duration <= 2 &&
+                video.seconds - duration >= 0) ||
+              (videoTitle.includes(searchTitle) &&
+                duration - video.seconds <= 2 &&
+                duration - video.seconds >= 0)
+            );
+          });
+
+          let largestOfficial = official[0];
+          for (let i = 0; i < official.length; i++) {
+            if (official[i].views > largestOfficial.views) {
+              largestOfficial = official[i];
+            }
+          }
+
+          const filtered = videos.filter(
+            video =>
+              (video.seconds - duration < 3 && video.seconds - duration > 0) ||
+              (duration - video.seconds < 3 && duration - video.seconds > 0)
+          );
+
+          let largestFiltered = filtered[0];
+          for (let i = 0; i < filtered.length; i++) {
+            if (filtered[i].views > largestFiltered.views) {
+              largestFiltered = filtered[i];
+            }
+          }
+
+          const newUrl =
+            official.length > 0
+              ? `https://www.youtube.com${largestOfficial.url}`
+              : filtered.length > 0
+              ? `https://www.youtube.com${largestFiltered.url}`
+              : `https://www.youtube.com${videos[0].url}`;
+          resolve(newUrl);
+        }
+
+        const newUrl = `https://www.youtube.com${videos[0].url}`;
+        resolve(newUrl);
+      });
+    });
+  }
+
+  static async youtubePlaylist(url) {
+    return new Promise(async (resolve, reject) => {
+      const playlistUrls = await ytlist(url, "url").then(res => {
+        return res.data.playlist;
+      });
+      resolve(playlistUrls);
     });
   }
 
@@ -278,72 +349,6 @@ module.exports = class Helpers {
           }
         ]);
       });
-    });
-  }
-
-  static searchYoutube(search, artist, trackName, duration) {
-    return new Promise((resolve, reject) => {
-      const opts = {
-        query: search,
-        pageStart: 1,
-        pageEnd: 2
-      };
-      ytSearch(opts, (err, r) => {
-        if (err) {
-          reject(err);
-        }
-        const videos = r.videos;
-        if ((artist, trackName, duration)) {
-          const official = videos.filter(
-            video =>
-              video.author.name.toLowerCase().includes(artist.toLowerCase()) &&
-              video.title.toLowerCase().includes(trackName.toLowerCase()) &&
-              !video.title
-                .toLowerCase()
-                .includes("live", "conan o'brien", "tutorial")
-          );
-
-          let largestOfficial = official[0];
-          for (let i = 0; i < official.length; i++) {
-            if (official[i].views > largestOfficial.views) {
-              largestOfficial = official[i];
-            }
-          }
-
-          const filtered = videos.filter(
-            video =>
-              (video.seconds - duration < 3 && video.seconds - duration > 0) ||
-              (duration - video.seconds < 3 && duration - video.seconds > 0)
-          );
-
-          let largestFiltered = filtered[0];
-          for (let i = 0; i < filtered.length; i++) {
-            if (filtered[i].views > largestFiltered.views) {
-              largestFiltered = filtered[i];
-            }
-          }
-
-          const newUrl =
-            official.length > 0
-              ? `https://www.youtube.com${largestOfficial.url}`
-              : filtered.length > 0
-              ? `https://www.youtube.com${largestFiltered.url}`
-              : `https://www.youtube.com${videos[0].url}`;
-          resolve(newUrl);
-        }
-
-        const newUrl = `https://www.youtube.com${videos[0].url}`;
-        resolve(newUrl);
-      });
-    });
-  }
-
-  static async youtubePlaylist(url) {
-    return new Promise(async (resolve, reject) => {
-      const playlistUrls = await ytlist(url, "url").then(res => {
-        return res.data.playlist;
-      });
-      resolve(playlistUrls);
     });
   }
 
