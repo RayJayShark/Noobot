@@ -25,53 +25,53 @@ module.exports = class Helpers {
       streamOptions.volume = server.dispatcher._volume;
     }
 
-    setTimeout(() => {
-      this.retrieveQueue(dbserver.id).then(found => {
-        stream = YTDL(found.songs[0].get().url, {
-          quality: "highestaudio",
-          filter: "audioonly"
-        }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
-  
-        embed = new Discord.RichEmbed()
-          .setColor("#0099ff")
-          .setTitle(`${found.songs[0].get().title}`)
-          .setURL(`${found.songs[0].get().url}`)
-          .setAuthor(`Now Playing:`)
-          .setFooter(
-            `Length: ${this.convertSeconds(found.songs[0].get().lengthSeconds)}`
-          );
-  
-        message.channel.send(embed).then(message => {
-          message.delete(10000);
-        });
-      })
-    }, 500);
+    this.retrieveQueue(dbserver.id).then(found => {
+      stream = YTDL(found.songs[0].get().url, {
+        quality: "highestaudio",
+        filter: "audioonly"
+      }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
 
-    setTimeout(async () => {
-      server.dispatcher = connection.playFile(stream.path, streamOptions);
-      server.dispatcher.on("end", async (reason) => {
-        if (reason === "user" || reason === "stream"){
-          this.retrieveQueue(dbserver.id).then(queue => {
-            models.SongQueue.destroy({
-              where: { songId: queue.songs[0].get().id, queueId: queue.id }
-            });
-          })
-        }        
-        
-        fs.unlink(stream.path, err => {
-          if (err) console.log(err);
-        });
+      embed = new Discord.RichEmbed()
+        .setColor("#0099ff")
+        .setTitle(`${found.songs[0].get().title}`)
+        .setURL(`${found.songs[0].get().url}`)
+        .setAuthor(`Now Playing:`)
+        .setFooter(
+          `Length: ${this.convertSeconds(found.songs[0].get().lengthSeconds)}`
+        );
 
-        setTimeout(async () => {
-          queue = await this.retrieveQueue(dbserver.id);
-          if (queue.songs.length > 0) {
-            this.play(connection, message, queue);
-          } else {
-            connection.disconnect();
-          }
-        }, 1000);
+      message.channel.send(embed).then(message => {
+        message.delete(10000);
       });
-    }, 2000);
+
+      let readFile = setInterval(() => {
+        const stats = fs.statSync(stream.path);
+        if (stats.size > 300000) {
+          server.dispatcher = connection.playFile(stream.path, streamOptions);
+          clearInterval(readFile);
+          server.dispatcher.on("end", async reason => {
+            if (reason === "stream" || reason === "user") {
+              this.retrieveQueue(dbserver.id).then(queue => {
+                models.SongQueue.destroy({
+                  where: { songId: queue.songs[0].get().id, queueId: queue.id }
+                }).then(() => {
+                  this.retrieveQueue(dbserver.id).then(queue => {
+                    fs.unlink(stream.path, err => {
+                      if (err) console.log(err);
+                    });
+                    if (queue.songs.length > 0) {
+                      this.play(connection, message, queue);
+                    } else {
+                      connection.disconnect();
+                    }
+                  });
+                });
+              });
+            }
+          });
+        }
+      }, 200);
+    });
   }
 
   static getSpotifyUrl(args) {
@@ -133,7 +133,13 @@ module.exports = class Helpers {
       const duration = data.duration_ms / 1000;
       const albumName = album ? album : data.album.name;
       const search = `${trackName} ${albumName} ${artist}`;
-      const url = await this.searchYoutube(search, artist, trackName, duration, albumName);
+      const url = await this.searchYoutube(
+        search,
+        artist,
+        trackName,
+        duration,
+        albumName
+      );
       resolve(url);
     });
   }
@@ -327,22 +333,24 @@ module.exports = class Helpers {
           reject(err);
         }
         const videos = r.videos;
-
         resolve([
           {
             title: videos[0].title,
             url: `https://www.youtube.com${videos[0].url}`,
-            lengthSeconds: videos[0].seconds
+            lengthSeconds: videos[0].seconds,
+            author: videos[0].author.name
           },
           {
             title: videos[1].title,
             url: `https://www.youtube.com${videos[1].url}`,
-            lengthSeconds: videos[1].seconds
+            lengthSeconds: videos[1].seconds,
+            author: videos[1].author.name
           },
           {
             title: videos[2].title,
             url: `https://www.youtube.com${videos[2].url}`,
-            lengthSeconds: videos[2].seconds
+            lengthSeconds: videos[2].seconds,
+            author: videos[2].author.name
           }
         ]);
       });

@@ -20,8 +20,7 @@ module.exports = class StopCommand extends commando.Command {
         const dbserver = await helper.retrieveServer(message.guild.id);
         const queue = await helper.retrieveQueue(dbserver.id);
         models.SongQueue.destroy({ where: { queueId: queue.id } }).then(() => {
-          const server = servers[message.guild.id];
-          server.dispatcher.end("stop");
+          message.guild.voiceConnection.disconnect();
         });
       }
     } else {

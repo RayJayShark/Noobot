@@ -21,21 +21,21 @@ module.exports = class SkipCommand extends commando.Command {
         .setTitle("Select a result:")
         .addField(
           `1.  ${threeResults[0].title}`,
-          `${helper.convertSeconds(threeResults[0].lengthSeconds)} - [Link](${
-            threeResults[0].url
-          })`
+          `${threeResults[0].author} - ${helper.convertSeconds(
+            threeResults[0].lengthSeconds
+          )} - [Link](${threeResults[0].url})`
         )
         .addField(
           `2.  ${threeResults[1].title}`,
-          `${helper.convertSeconds(threeResults[1].lengthSeconds)} - [Link](${
-            threeResults[1].url
-          })`
+          `${threeResults[1].author} - ${helper.convertSeconds(
+            threeResults[1].lengthSeconds
+          )} - [Link](${threeResults[1].url})`
         )
         .addField(
           `3.  ${threeResults[2].title}`,
-          `${helper.convertSeconds(threeResults[2].lengthSeconds)} - [Link](${
-            threeResults[2].url
-          })`
+          `${threeResults[2].author} - ${helper.convertSeconds(
+            threeResults[2].lengthSeconds
+          )} - [Link](${threeResults[2].url})`
         );
 
       const sent = await message.channel.send(embed);
@@ -68,12 +68,12 @@ module.exports = class SkipCommand extends commando.Command {
                     servers[message.guild.id] = {};
                   }
                   helper.retrieveQueue(server.id).then(queue => {
-                    if (queue){
+                    if (queue) {
                       message.member.voiceChannel.join().then(connection => {
                         helper.play(connection, message);
                       });
                     }
-                  })
+                  });
                 }
                 helper.songQueueJoin(threeResults[arrIndex].url, queue);
                 sent.delete(100);
