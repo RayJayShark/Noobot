@@ -19,6 +19,7 @@
     "sequelize": "^5.8.12",
     "sequelize-cli": "^5.5.0",
     "sqlite": "^3.0.3",
+    "xregexp": "^4.2.4",
     "youtube-playlist": "^1.0.2",
     "yt-search": "^0.4.1",
     "ytdl-core": "^0.29.2"

@@ -6,6 +6,7 @@ const ytlist = require("youtube-playlist");
 const request = require("request");
 const Discord = require("discord.js");
 const models = require("./models");
+const XRegExp = require("xregexp");
 require("dotenv").config();
 
 const spotify = new Spotify({
@@ -20,55 +21,67 @@ module.exports = class Helpers {
     const dbserver = await this.retrieveServer(message.guild.id);
     const server = servers[message.guild.id];
     const streamOptions = { volume: 0.8 };
-    let stream, embed, queue;
+    let stream;
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
 
     this.retrieveQueue(dbserver.id).then(found => {
-      stream = YTDL(found.songs[0].get().url, {
-        quality: "highestaudio",
-        filter: "audioonly"
-      }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
-
-      embed = new Discord.RichEmbed()
-        .setColor("#0099ff")
-        .setTitle(`${found.songs[0].get().title}`)
-        .setURL(`${found.songs[0].get().url}`)
-        .setAuthor(`Now Playing:`)
-        .setFooter(
-          `Length: ${this.convertSeconds(found.songs[0].get().lengthSeconds)}`
-        );
-
-      message.channel.send(embed).then(message => {
-        message.delete(10000);
-      });
+      const checkQueueLength = setInterval(() => {
+        if (found.songs.length > 0) {
+          clearInterval(checkQueueLength);
+          stream = YTDL(found.songs[0].get().url, {
+            quality: "highestaudio",
+            filter: "audioonly"
+          }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
+        }
+      }, 50);
 
       let readFile = setInterval(() => {
-        const stats = fs.statSync(stream.path);
-        if (stats.size > 300000) {
-          server.dispatcher = connection.playFile(stream.path, streamOptions);
-          clearInterval(readFile);
-          server.dispatcher.on("end", async reason => {
-            if (reason === "stream" || reason === "user") {
-              this.retrieveQueue(dbserver.id).then(queue => {
-                models.SongQueue.destroy({
-                  where: { songId: queue.songs[0].get().id, queueId: queue.id }
-                }).then(() => {
-                  this.retrieveQueue(dbserver.id).then(queue => {
-                    fs.unlink(stream.path, err => {
-                      if (err) console.log(err);
-                    });
-                    if (queue.songs.length > 0) {
-                      this.play(connection, message, queue);
-                    } else {
-                      connection.disconnect();
+        if (stream.path) {
+          const stats = fs.statSync(stream.path);
+          if (stats && stats.size > 5000) {
+            clearInterval(readFile);
+            const embed = new Discord.RichEmbed()
+              .setColor("#0099ff")
+              .setTitle(`${found.songs[0].get().title}`)
+              .setURL(`${found.songs[0].get().url}`)
+              .setAuthor(`Now Playing:`)
+              .setFooter(
+                `Length: ${this.convertSeconds(
+                  found.songs[0].get().lengthSeconds
+                )}`
+              );
+
+            message.channel.send(embed).then(message => {
+              message.delete(10000);
+            });
+
+            server.dispatcher = connection.playFile(stream.path, streamOptions);
+            server.dispatcher.on("end", async reason => {
+              if (reason === "user" || reason === "stream") {
+                this.retrieveQueue(dbserver.id).then(queue => {
+                  models.SongQueue.destroy({
+                    where: {
+                      songId: queue.songs[0].get().id,
+                      queueId: queue.id
                     }
+                  }).then(() => {
+                    this.retrieveQueue(dbserver.id).then(queue => {
+                      if (queue.songs.length > 0) {
+                        this.play(connection, message, queue);
+                      } else {
+                        connection.disconnect();
+                      }
+                    });
                   });
                 });
+              }
+              fs.unlink(stream.path, err => {
+                if (err) console.log(err);
               });
-            }
-          });
+            });
+          }
         }
       }, 200);
     });
@@ -156,10 +169,12 @@ module.exports = class Helpers {
           reject(err);
         }
         const videos = r.videos;
+
         if ((artist, trackName, duration, albumName)) {
           const official = videos.filter(video => {
-            const videoTitle = video.title.match(/[A-Z0-9]+/gi).join(" ");
-            const searchTitle = trackName.match(/[A-Z0-9]+/gi);
+            const exp = XRegExp(`[\\p{L}\\p{Nd}]+`);
+            const videoTitle = XRegExp.match(video.title, exp, "all").join(" ");
+            const searchTitle = XRegExp.match(trackName, exp, "all");
 
             return (
               (searchTitle.some(word => videoTitle.includes(word)) &&
@@ -200,8 +215,10 @@ module.exports = class Helpers {
   }
 
   static async youtubePlaylist(url) {
+    const ytPlaylistId = url.match(/(?<=list=)[\D\d]+/);
+    const newUrl = "https://www.youtube.com/playlist?list=" + ytPlaylistId;
     return new Promise(async (resolve, reject) => {
-      const playlistUrls = await ytlist(url, "url").then(res => {
+      const playlistUrls = await ytlist(newUrl, "url").then(res => {
         return res.data.playlist;
       });
       resolve(playlistUrls);
@@ -367,7 +384,13 @@ module.exports = class Helpers {
 
   static youTubeApiSearch(url) {
     return new Promise((resolve, reject) => {
-      const videoId = url.match(/(?<=v=)[\D\d]+/);
+      let videoId;
+      if (url.includes("watch?v=")) {
+        videoId = url.match(/(?<=v=)[\D\d]+/);
+      } else if (url.includes("youtu.be")) {
+        videoId = url.match(/(?<=be\/)[\D\d]+/);
+      }
+
       request(
         youtubeUrl + videoId + process.env.YOUTUBE_API,
         (error, response, body) => {

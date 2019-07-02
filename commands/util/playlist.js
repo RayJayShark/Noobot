@@ -21,8 +21,8 @@ module.exports = class PlaylistCommand extends commando.Command {
     const plName = args.split(" ")[1];
     const url = args.split(" ")[2];
     const server = await helper.retrieveServer(message.guild.id);
-    let playlist;
     const discordUser = message.author.id;
+    let playlist;
 
     switch (command) {
       case "create":
@@ -47,56 +47,108 @@ module.exports = class PlaylistCommand extends commando.Command {
           plName.toLowerCase(),
           server.id
         );
-        //YouTube Playlist
-        if (playlist === null) {
-          message.reply(
-            `No playlist found with the name \`${plName.toLowerCase()}\`, create it first.`
-          );
-        } else if (url.includes("&list") || url.includes("playlist?list")) {
-          const ytPlaylistUrls = await helper.youtubePlaylist(url);
-          ytPlaylistUrls.forEach(url => {
-            helper.songPlaylistJoin(url, playlist);
-          });
-        }
-        //Spotify Playlist
-        else if (url.includes("spotify")) {
-          if (url.includes("/playlist/")) {
-            const spotyPlaylist = [...(await helper.getSpotifyUrl(url))];
-            spotyPlaylist.forEach(async url => {
+        if (playlist && playlist.get().createdBy === message.author.id) {
+          //Spotify URL Handler
+          if (url.includes("spotify")) {
+            //Spotify Playlist
+            if (url.includes("/playlist/")) {
+              const spotyPlaylist = [...(await helper.getSpotifyUrl(url))];
+              spotyPlaylist.forEach(async url => {
+                helper.songPlaylistJoin(url, playlist);
+              });
+            }
+            //Spotify Album
+            else if (url.includes("/album/")) {
+              const spotyAlbum = [...(await helper.getSpotifyUrl(url))];
+              for (let i = 0; i < spotyAlbum.length; i++) {
+                helper.songPlaylistJoin(spotyAlbum[i], playlist);
+              }
+            }
+            //Regular Spotify Link
+            else {
+              const url = await helper.getSpotifyUrl(args);
+              helper.songPlaylistJoin(url, playlist);
+            }
+          }
+          //YouTube Playlist
+          else if (url.includes("youtube.com/playlist")) {
+            const ytPlaylistUrls = await helper.youtubePlaylist(url);
+            ytPlaylistUrls.forEach(url => {
               helper.songPlaylistJoin(url, playlist);
             });
           }
-          //Spotify Album
-          else if (url.includes("/album/")) {
-            const spotyAlbum = [...(await helper.getSpotifyUrl(url))];
-            for (let i = 0; i < spotyAlbum.length; i++) {
-              helper.songPlaylistJoin(spotyAlbum[i], playlist);
-            }
-          }
-          //Regular Spotify Link
-          else {
-            const url = await helper.getSpotifyUrl(args);
-            helper.songPlaylistJoin(url, playlist);
-          }
-        }
-        //Currently playing song
-        else if (url === "nowplaying") {
-          const queue = await helper.retrieveQueue(server.id);
-          playlist = await helper.retrievePlaylist(
-            plName.toLowerCase(),
-            server.id
-          );
+          //Currently playing song
+          else if (url === "nowplaying") {
+            const queue = await helper.retrieveQueue(server.id);
+            playlist = await helper.retrievePlaylist(
+              plName.toLowerCase(),
+              server.id
+            );
 
-          models.SongPlaylist.findOrCreate({
-            where: {
-              songId: queue.songs[0].get().id,
-              playlistId: playlist.id
+            models.SongPlaylist.findOrCreate({
+              where: {
+                songId: queue.songs[0].get().id,
+                playlistId: playlist.id
+              }
+            });
+          }
+          //Regular YouTube Link
+          else {
+            //Playlist Checker
+            if (url.includes("?list") || url.includes("&list")) {
+              const filter = (reaction, user) => {
+                return (
+                  ["1⃣", "2⃣"].includes(reaction.emoji.name) &&
+                  user.id === message.author.id
+                );
+              };
+              const sent = await message.channel.send(
+                "This URL includes a Playlist - Do you want to:\n1. Add just the song.\n2.Add the entire playlist."
+              );
+
+              sent.react("1⃣").then(() => sent.react("2⃣"));
+              sent
+                .awaitReactions(filter, {
+                  max: 1,
+                  time: 7000,
+                  errors: ["time"]
+                })
+                .catch(() => sent.delete())
+                .then(async collected => {
+                  const reaction = collected.first();
+                  if (reaction.emoji.name === "1⃣") {
+                    helper.songPlaylistJoin(url.split("list")[0], playlist);
+                    message.channel
+                      .send(`Song added to playlist: ${plName}`)
+                      .then(message => {
+                        message.delete(2000);
+                        sent.delete(1900);
+                      });
+                  } else if (reaction.emoji.name === "2⃣") {
+                    const ytPlaylistUrls = await helper.youtubePlaylist(url);
+                    ytPlaylistUrls.forEach(url => {
+                      helper.songPlaylistJoin(url, playlist);
+                    });
+                    message.channel
+                      .send(`Added all videos to ${plName}`)
+                      .then(message => {
+                        message.delete(2000);
+                        sent.delete(2000);
+                      });
+                  }
+                });
             }
-          });
-        }
-        //Regular YouTube Link
-        else {
-          helper.songPlaylistJoin(url, playlist);
+          }
+        } else if (playlist && playlist.get().createdBy !== message.author.id) {
+          message
+            .reply("Only the creator of the playlist can delete it.")
+            .then(message => message.delete(3000));
+        } else {
+          message
+            .reply(
+              `No playlist found with the name \`${plName.toLowerCase()}\`, create it first.`
+            )
+            .then(message => message.delete(3000));
         }
         break;
       case "remove":
@@ -104,7 +156,6 @@ module.exports = class PlaylistCommand extends commando.Command {
           plName.toLowerCase(),
           server.id
         );
-        //YouTube Playlist
         if (!playlist) {
           message.reply(
             `No playlist found with the name \`${plName.toLowerCase()}\`, create it first.`
@@ -199,11 +250,18 @@ module.exports = class PlaylistCommand extends commando.Command {
               }
               helper.retrieveQueue(server.id).then(queue => {
                 if (queue) {
-                  message.member.voiceChannel.join().then(connection => {
-                    helper.play(connection, message);
-                  });
+                  message.member.voiceChannel
+                    .join()
+                    .then(connection => {
+                      helper.play(connection, message);
+                    })
+                    .catch(ex => {
+                      message.channel
+                        .send("I don't have permission to join this channel.")
+                        .then(message => message.delete(3000));
+                    });
                 }
-              })
+              });
             }
           } else {
             message.reply("You need to be in a voice channel.");
@@ -234,7 +292,6 @@ module.exports = class PlaylistCommand extends commando.Command {
           plName.toLowerCase(),
           server.id
         );
-
         if (playlist && playlist.get().createdBy === message.author.id) {
           const filter = (reaction, user) => {
             return (
@@ -289,9 +346,13 @@ module.exports = class PlaylistCommand extends commando.Command {
             .catch(() => {
               message.delete();
             });
-        } else {
+        } else if (playlist && playlist.get().createdBy !== message.author.id) {
           message
             .reply("Only the creator of the playlist can delete it.")
+            .then(message => message.delete(3000));
+        } else {
+          message
+            .reply(`No playlist found by the name of \`${plName}\`.`)
             .then(message => message.delete(3000));
         }
         break;
