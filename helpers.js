@@ -171,11 +171,10 @@ module.exports = class Helpers {
         const videos = r.videos;
 
         if ((artist, trackName, duration, albumName)) {
-          const official = videos.filter(video => {
+          const filtered = videos.filter(video => {
             const exp = XRegExp(`[\\p{L}\\p{Nd}]+`);
             const videoTitle = XRegExp.match(video.title, exp, "all").join(" ");
             const searchTitle = XRegExp.match(trackName, exp, "all");
-
             return (
               (searchTitle.some(word => videoTitle.includes(word)) &&
                 video.seconds - duration <= 2 &&
@@ -186,11 +185,11 @@ module.exports = class Helpers {
             );
           });
 
-          const filtered = videos.filter(
-            video =>
-              (video.seconds - duration < 3 && video.seconds - duration > 0) ||
-              (duration - video.seconds < 3 && duration - video.seconds > 0)
-          );
+          const official = filtered.filter(video => {
+            return video.author.name
+              .toLowerCase()
+              .includes(artist.toLowerCase());
+          });
 
           let largestFiltered = filtered[0];
           for (let i = 0; i < filtered.length; i++) {
@@ -199,11 +198,24 @@ module.exports = class Helpers {
             }
           }
 
+          const lastResort = videos.filter(video => {
+            return (
+              (!video.title.toLowerCase().includes("live") &&
+                video.seconds - duration <= 10 &&
+                video.seconds - duration >= 0) ||
+              (!video.title.toLowerCase().includes("live") &&
+                duration - video.seconds <= 10 &&
+                duration - video.seconds >= 0)
+            );
+          });
+
           const newUrl =
             official.length > 0
               ? `https://www.youtube.com${official[0].url}`
-              : filtered.length > 0
+              : largestFiltered
               ? `https://www.youtube.com${largestFiltered.url}`
+              : lastResort > 0
+              ? `https://www.youtube.com${lastResort[0].url}`
               : `https://www.youtube.com${videos[0].url}`;
           resolve(newUrl);
         }
@@ -424,6 +436,144 @@ module.exports = class Helpers {
         }
       );
     });
+  }
+
+  static async createPagination(array, message) {
+    let arrStart = 0;
+    let arrEnd = 5;
+    let currentPage = 1;
+    const additionalPage = array.length % 5 !== 0 ? 1 : 0;
+    const pageTotal =
+      array.length === 0 ? 1 : Math.floor(array.length / 5) + additionalPage;
+
+    async function createEmbed(
+      sentArray,
+      arrStart,
+      arrEnd,
+      currentPage,
+      pageTotal
+    ) {
+      const arr = sentArray.slice(arrStart, arrEnd);
+      let pageinateEmbed = new Discord.RichEmbed().setTimestamp();
+      for (let i = 0; i < 5; i++) {
+        if (arr[i]) {
+          pageinateEmbed.addField(
+            `${arrStart + i + 1}. ${arr[i].get().title}`,
+            `${Helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
+              arr[i].get().url
+            })`
+          );
+        }
+      }
+
+      let totalLength = 0;
+      for (let i = 0; i < array.length; i++) {
+        totalLength += array[i].get().lengthSeconds;
+      }
+
+      pageinateEmbed
+        .setFooter(`Page ${currentPage} of ${pageTotal}`)
+        .setAuthor(
+          `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
+            totalLength
+          )}`
+        );
+      return pageinateEmbed;
+    }
+
+    async function waitReaction(sent, currentPage, pageTotal, arr) {
+      const filter = (reaction, user) => {
+        return (
+          ["⬅", "➡", "❌"].includes(reaction.emoji.name) &&
+          user.id === message.author.id
+        );
+      };
+
+      if (arr.length > 5 && currentPage !== 1 && currentPage !== pageTotal) {
+        sent
+          .react("⬅")
+          .then(() => sent.react("❌").catch(err => earlyEmoteReact()))
+          .then(() => sent.react("➡").catch(err => earlyEmoteReact()));
+      } else if (arr.length > 5 && currentPage === 1) {
+        sent
+          .react("❌")
+          .catch(err => earlyEmoteReact())
+          .then(() => sent.react("➡").catch(err => earlyEmoteReact()));
+      } else if (arr.length > 5 && currentPage === pageTotal) {
+        sent
+          .react("⬅")
+          .then(() => sent.react("❌").catch(err => earlyEmoteReact()));
+      } else {
+        sent.react("❌");
+      }
+
+      sent
+        .awaitReactions(filter, {
+          max: 1,
+          time: 10000,
+          errors: ["time"]
+        })
+        .then(async collected => {
+          const reaction = collected.first();
+          if (reaction.emoji.name === "⬅") {
+            currentPage--;
+            arrStart -= 5;
+            arrEnd -= 5;
+            let embed = await createEmbed(
+              arr,
+              arrStart,
+              arrEnd,
+              currentPage,
+              pageTotal
+            );
+            sent
+              .delete()
+              .then(() => message.channel.send(embed))
+              .then(message =>
+                waitReaction(message, currentPage, pageTotal, array)
+              );
+          } else if (reaction.emoji.name === "❌") {
+            sent.delete(100);
+          } else if (reaction.emoji.name === "➡") {
+            currentPage++;
+            arrStart += 5;
+            arrEnd += 5;
+            let embed = await createEmbed(
+              arr,
+              arrStart,
+              arrEnd,
+              currentPage,
+              pageTotal
+            );
+            sent
+              .delete()
+              .then(() => message.channel.send(embed))
+              .then(message =>
+                waitReaction(message, currentPage, pageTotal, array)
+              );
+          }
+        })
+        .catch(err => {
+          sent.delete();
+        });
+    }
+
+    let embed = await createEmbed(
+      array,
+      arrStart,
+      arrEnd,
+      currentPage,
+      pageTotal
+    );
+
+    message.channel
+      .send(embed)
+      .then(message => waitReaction(message, currentPage, pageTotal, array));
+
+    //This is here if someone clicks an emote before all 3 are reacted to the message.
+    function earlyEmoteReact() {
+      return;
+    }
   }
 
   static convertSeconds(sec) {

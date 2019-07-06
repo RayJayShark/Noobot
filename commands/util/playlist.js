@@ -185,44 +185,7 @@ module.exports = class PlaylistCommand extends commando.Command {
           plName.toLowerCase(),
           server.id
         );
-        let totalLength = 0;
-        const embed = new Discord.RichEmbed().setColor("#0099ff");
-        playlist.get().songs.forEach((song, index) => {
-          embed.addField(
-            `${index + 1}. ${song.title}`,
-            `${helper.convertSeconds(song.lengthSeconds)} - [Link](${song.url})`
-          );
-          totalLength += song.lengthSeconds;
-        });
-        embed.setAuthor(
-          `Total Songs:  ${
-            playlist.get().songs.length
-          }   -   ${helper.convertSeconds(totalLength)}`
-        );
-        message.channel.send(embed).then(message => {
-          if (playlist.get().songs.length <= 10) {
-            const filter = reaction => {
-              return ["❌"].includes(reaction.emoji.name);
-            };
-            message.react("❌").then(
-              message
-                .awaitReactions(filter, {
-                  max: 2,
-                  time: 30000,
-                  errors: ["time"]
-                })
-                .then(collected => {
-                  const reaction = collected.first();
-                  if (reaction.emoji.name === "❌") {
-                    message.delete();
-                  }
-                })
-                .catch(() => {
-                  message.delete();
-                })
-            );
-          }
-        });
+        helper.createPagination(playlist.get().songs, message);
         break;
       case "play":
         playlist = await helper.retrievePlaylist(
@@ -278,13 +241,28 @@ module.exports = class PlaylistCommand extends commando.Command {
           const embed = new Discord.RichEmbed()
             .setAuthor(`Your Server has ${playlists.length} Playlists.`)
             .setColor("#008000");
-          playlists.forEach((playlist, index) => {
-            embed.addField(
-              `${index + 1}.   ${playlist.get().name}`,
-              `Song Total: **${playlist.get().songs.length}**`
-            );
-          });
-          message.channel.send(embed);
+
+          for (let i = 0; i < 5; i++) {
+            if (playlists[i + 5]) {
+              console.log(i, playlists[i + 5].get().name);
+              embed.addField(
+                `${i + 1}.   ${playlists[i].get().name}`,
+                `Song Total: **${playlists[i].get().songs.length}**`,
+                true
+              );
+              embed.addField(
+                `${i + 6}.   ${playlists[i + 5].get().name}`,
+                `Song Total: **${playlists[i + 5].get().songs.length}**`,
+                true
+              );
+            } else {
+              embed.addField(
+                `${i + 1}.   ${playlists[i].get().name}`,
+                `Song Total: **${playlists[i].get().songs.length}**`
+              );
+            }
+          }
+          message.channel.send(embed).then(message => message.delete(10000));
         });
         break;
       case "delete":
