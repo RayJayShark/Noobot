@@ -244,7 +244,6 @@ module.exports = class PlaylistCommand extends commando.Command {
 
           for (let i = 0; i < 5; i++) {
             if (playlists[i + 5]) {
-              console.log(i, playlists[i + 5].get().name);
               embed.addField(
                 `${i + 1}.   ${playlists[i].get().name}`,
                 `Song Total: **${playlists[i].get().songs.length}**`,
@@ -255,7 +254,7 @@ module.exports = class PlaylistCommand extends commando.Command {
                 `Song Total: **${playlists[i + 5].get().songs.length}**`,
                 true
               );
-            } else {
+            } else if (playlists[i]) {
               embed.addField(
                 `${i + 1}.   ${playlists[i].get().name}`,
                 `Song Total: **${playlists[i].get().songs.length}**`

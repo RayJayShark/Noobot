@@ -489,23 +489,11 @@ module.exports = class Helpers {
         );
       };
 
-      if (arr.length > 5 && currentPage !== 1 && currentPage !== pageTotal) {
-        sent
-          .react("⬅")
-          .then(() => sent.react("❌").catch(err => earlyEmoteReact()))
-          .then(() => sent.react("➡").catch(err => earlyEmoteReact()));
-      } else if (arr.length > 5 && currentPage === 1) {
-        sent
-          .react("❌")
-          .catch(err => earlyEmoteReact())
-          .then(() => sent.react("➡").catch(err => earlyEmoteReact()));
-      } else if (arr.length > 5 && currentPage === pageTotal) {
-        sent
-          .react("⬅")
-          .then(() => sent.react("❌").catch(err => earlyEmoteReact()));
-      } else {
-        sent.react("❌");
-      }
+      sent
+        .react("⬅")
+        .catch(err => earlyEmoteReact())
+        .then(() => sent.react("❌").catch(err => earlyEmoteReact()))
+        .then(() => sent.react("➡").catch(err => earlyEmoteReact()));
 
       sent
         .awaitReactions(filter, {
@@ -515,46 +503,43 @@ module.exports = class Helpers {
         })
         .then(async collected => {
           const reaction = collected.first();
-          if (reaction.emoji.name === "⬅") {
+          if (reaction.emoji.name === "⬅" && currentPage !== 1) {
             currentPage--;
             arrStart -= 5;
             arrEnd -= 5;
-            let embed = await createEmbed(
-              arr,
-              arrStart,
-              arrEnd,
-              currentPage,
-              pageTotal
-            );
-            sent
-              .delete()
-              .then(() => message.channel.send(embed))
-              .then(message =>
-                waitReaction(message, currentPage, pageTotal, array)
-              );
           } else if (reaction.emoji.name === "❌") {
             sent.delete(100);
-          } else if (reaction.emoji.name === "➡") {
+          } else if (reaction.emoji.name === "➡" && currentPage !== pageTotal) {
             currentPage++;
             arrStart += 5;
             arrEnd += 5;
-            let embed = await createEmbed(
-              arr,
-              arrStart,
-              arrEnd,
-              currentPage,
-              pageTotal
-            );
-            sent
-              .delete()
-              .then(() => message.channel.send(embed))
-              .then(message =>
-                waitReaction(message, currentPage, pageTotal, array)
-              );
+          } else if (reaction.emoji.name === "⬅" && currentPage === 1) {
+            currentPage = pageTotal;
+            arrStart = 5 * pageTotal - 5;
+            arrEnd = 5 * pageTotal;
+          } else if (reaction.emoji.name === "➡" && currentPage === pageTotal) {
+            currentPage = 1;
+            arrStart = 0;
+            arrEnd = 5;
           }
+          let embed = await createEmbed(
+            arr,
+            arrStart,
+            arrEnd,
+            currentPage,
+            pageTotal
+          );
+          sent
+            .edit(embed)
+            .catch(err => {
+              earlyEmoteReact();
+            })
+            .then(message =>
+              waitReaction(message, currentPage, pageTotal, array)
+            );
         })
         .catch(err => {
-          sent.delete();
+          sent.delete().catch(err => earlyEmoteReact());
         });
     }
 
