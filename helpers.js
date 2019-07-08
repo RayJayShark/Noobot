@@ -392,15 +392,9 @@ module.exports = class Helpers {
 
   static async processTitles(array) {
     return await Promise.all(
-      array.map((url, index) => {
-        try {
-          return YTDL.getBasicInfo(url).then(
-            res => `${index + 1}: ${res.title}`
-          );
-        } catch (error) {
-          console.log("HELLO");
-        }
-      })
+      array.map((url, index) =>
+        YTDL.getBasicInfo(url).then(res => `${index + 1}: ${res.title}`)
+      )
     );
   }
 
