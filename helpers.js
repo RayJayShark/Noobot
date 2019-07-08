@@ -1,5 +1,4 @@
 const YTDL = require("ytdl-core");
-const fs = require("fs");
 const Spotify = require("node-spotify-api");
 const ytSearch = require("yt-search");
 const ytlist = require("youtube-playlist");
@@ -21,45 +20,39 @@ module.exports = class Helpers {
     const dbserver = await this.retrieveServer(message.guild.id);
     const server = servers[message.guild.id];
     const streamOptions = { volume: 0.8 };
-    let stream;
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
 
     this.retrieveQueue(dbserver.id).then(found => {
-      const checkQueueLength = setInterval(() => {
-        if (found.songs.length > 0) {
-          clearInterval(checkQueueLength);
-          stream = YTDL(found.songs[0].get().url, {
-            quality: "highestaudio",
-            filter: "audioonly"
-          }).pipe(fs.WriteStream(`downloads/${Date.now()}.mp3`));
-        }
-      }, 50);
-
-      let readFile = setInterval(() => {
-        if (stream.path) {
-          const stats = fs.statSync(stream.path);
-          if (stats && stats.size > 5000) {
-            clearInterval(readFile);
-            const embed = new Discord.RichEmbed()
-              .setColor("#0099ff")
-              .setTitle(`${found.songs[0].get().title}`)
-              .setURL(`${found.songs[0].get().url}`)
-              .setAuthor(`Now Playing:`)
-              .setFooter(
-                `Length: ${this.convertSeconds(
-                  found.songs[0].get().lengthSeconds
-                )}`
-              );
-
-            message.channel.send(embed).then(message => {
-              message.delete(10000);
+      if (found.songs.length > 0) {
+        YTDL.getInfo(found.songs[0].get().url, (err, info) => {
+          if (err) {
+            message.channel
+              .send(`Cannot play video.\n${err.message}`)
+              .then(message => message.delete(3000));
+            models.SongQueue.destroy({
+              where: {
+                songId: found.songs[0].get().id,
+                queueId: found.id
+              }
             });
-
-            server.dispatcher = connection.playFile(stream.path, streamOptions);
+            if (found.songs.length > 0) {
+              this.play(connection, message);
+            } else {
+              message.guild.voiceConnection.disconnect();
+            }
+          } else {
+            let stream = YTDL(found.songs[0].get().url, {
+              quality: "highestaudio",
+              filter: "audioonly"
+            });
+            server.dispatcher = connection.playStream(stream, streamOptions);
             server.dispatcher.on("end", async reason => {
-              if (reason === "user" || reason === "stream") {
+              if (
+                reason === "user" ||
+                reason === "Stream is not generating quickly enough."
+              ) {
                 this.retrieveQueue(dbserver.id).then(queue => {
                   models.SongQueue.destroy({
                     where: {
@@ -77,13 +70,24 @@ module.exports = class Helpers {
                   });
                 });
               }
-              fs.unlink(stream.path, err => {
-                if (err) console.log(err);
-              });
             });
           }
-        }
-      }, 200);
+        });
+
+        const embed = new Discord.RichEmbed()
+          .setColor("#0099ff")
+          .setTitle(`${found.songs[0].get().title}`)
+          .setURL(`${found.songs[0].get().url}`)
+          .setAuthor(`Now Playing:`)
+          .setFooter(
+            `Length: ${this.convertSeconds(found.songs[0].get().lengthSeconds)}`
+          );
+
+        message.channel.send(embed).then(message => {
+          message.delete(10000);
+        });
+
+      }
     });
   }
 
@@ -388,9 +392,15 @@ module.exports = class Helpers {
 
   static async processTitles(array) {
     return await Promise.all(
-      array.map((url, index) =>
-        YTDL.getBasicInfo(url).then(res => `${index + 1}: ${res.title}`)
-      )
+      array.map((url, index) => {
+        try {
+          return YTDL.getBasicInfo(url).then(
+            res => `${index + 1}: ${res.title}`
+          );
+        } catch (error) {
+          console.log("HELLO");
+        }
+      })
     );
   }
 
@@ -438,7 +448,7 @@ module.exports = class Helpers {
     });
   }
 
-  static async createPagination(array, message) {
+  static async createPagination(array, message, playlistList) {
     let arrStart = 0;
     let arrEnd = 5;
     let currentPage = 1;
@@ -453,31 +463,49 @@ module.exports = class Helpers {
       currentPage,
       pageTotal
     ) {
-      const arr = sentArray.slice(arrStart, arrEnd);
-      let pageinateEmbed = new Discord.RichEmbed().setTimestamp();
-      for (let i = 0; i < 5; i++) {
-        if (arr[i]) {
-          pageinateEmbed.addField(
-            `${arrStart + i + 1}. ${arr[i].get().title}`,
-            `${Helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
-              arr[i].get().url
-            })`
-          );
+      let pageinateEmbed;
+      if (playlistList) {
+        const arr = sentArray.slice(arrStart, arrEnd);
+        pageinateEmbed = new Discord.RichEmbed()
+          .setTimestamp()
+          .setAuthor(`Your Server has ${sentArray.length} Playlists.`)
+          .setColor("#008000");
+        for (let i = 0; i < 5; i++) {
+          if (arr[i]) {
+            pageinateEmbed.addField(
+              `${i + 1}.   ${arr[i].get().name}`,
+              `Song Total: **${arr[i].get().songs.length}**`
+            );
+          }
         }
+      } else {
+        const arr = sentArray.slice(arrStart, arrEnd);
+        pageinateEmbed = new Discord.RichEmbed().setTimestamp();
+        for (let i = 0; i < 5; i++) {
+          if (arr[i]) {
+            pageinateEmbed.addField(
+              `${arrStart + i + 1}. ${arr[i].get().title}`,
+              `${Helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
+                arr[i].get().url
+              })`
+            );
+          }
+        }
+
+        let totalLength = 0;
+        for (let i = 0; i < array.length; i++) {
+          totalLength += array[i].get().lengthSeconds;
+        }
+
+        pageinateEmbed
+          .setFooter(`Page ${currentPage} of ${pageTotal}`)
+          .setAuthor(
+            `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
+              totalLength
+            )}`
+          );
       }
 
-      let totalLength = 0;
-      for (let i = 0; i < array.length; i++) {
-        totalLength += array[i].get().lengthSeconds;
-      }
-
-      pageinateEmbed
-        .setFooter(`Page ${currentPage} of ${pageTotal}`)
-        .setAuthor(
-          `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
-            totalLength
-          )}`
-        );
       return pageinateEmbed;
     }
 

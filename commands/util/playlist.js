@@ -238,30 +238,7 @@ module.exports = class PlaylistCommand extends commando.Command {
           where: { serverId: server.id },
           include: "songs"
         }).then(playlists => {
-          const embed = new Discord.RichEmbed()
-            .setAuthor(`Your Server has ${playlists.length} Playlists.`)
-            .setColor("#008000");
-
-          for (let i = 0; i < 5; i++) {
-            if (playlists[i + 5]) {
-              embed.addField(
-                `${i + 1}.   ${playlists[i].get().name}`,
-                `Song Total: **${playlists[i].get().songs.length}**`,
-                true
-              );
-              embed.addField(
-                `${i + 6}.   ${playlists[i + 5].get().name}`,
-                `Song Total: **${playlists[i + 5].get().songs.length}**`,
-                true
-              );
-            } else if (playlists[i]) {
-              embed.addField(
-                `${i + 1}.   ${playlists[i].get().name}`,
-                `Song Total: **${playlists[i].get().songs.length}**`
-              );
-            }
-          }
-          message.channel.send(embed).then(message => message.delete(10000));
+          helper.createPagination(playlists, message, true);
         });
         break;
       case "delete":
