@@ -8,9 +8,9 @@ module.exports = class PlayCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "nowplaying",
-      group: "util",
+      group: "music",
       memberName: "nowplaying",
-      description: ""
+      description: "Displays the current song playing with timestamp."
     });
   }
 

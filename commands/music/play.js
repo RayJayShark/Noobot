@@ -6,9 +6,9 @@ module.exports = class PlayCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "play",
-      group: "util",
+      group: "music",
       memberName: "play",
-      description: ""
+      description: "Plays a YouTube Link/Playlist or Spotify Song/Playlist/Album Link."
     });
   }
 

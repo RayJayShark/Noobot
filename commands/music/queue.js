@@ -7,9 +7,9 @@ module.exports = class QueueCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "queue",
-      group: "util",
+      group: "music",
       memberName: "queue",
-      description: ""
+      description: "Shows upcoming songs for a server's queue."
     });
   }
 

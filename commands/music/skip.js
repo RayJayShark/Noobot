@@ -4,9 +4,9 @@ module.exports = class SkipCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "skip",
-      group: "util",
+      group: "music",
       memberName: "skip",
-      description: ""
+      description: "Skips currently playing song."
     });
   }
 

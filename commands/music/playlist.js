@@ -10,9 +10,9 @@ module.exports = class PlaylistCommand extends commando.Command {
     super(client, {
       name: "playlist",
       aliases: ["pl"],
-      group: "util",
+      group: "music",
       memberName: "playlist",
-      description: ""
+      description: "Create, add, remove, view, play, delete, playlists. List shows all playlists in current server."
     });
   }
 

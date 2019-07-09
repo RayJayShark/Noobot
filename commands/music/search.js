@@ -6,9 +6,9 @@ module.exports = class SkipCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "search",
-      group: "util",
+      group: "music",
       memberName: "search",
-      description: ""
+      description: "Searches YouTube - Returns Top 3 Results with reaction choice."
     });
   }
 

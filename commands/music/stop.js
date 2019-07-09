@@ -6,9 +6,9 @@ module.exports = class StopCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "stop",
-      group: "util",
+      group: "music",
       memberName: "stop",
-      description: ""
+      description: "Stops the bot, clears the queue, and leaves the voice channel."
     });
   }
 

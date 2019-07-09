@@ -12,7 +12,7 @@ global.sequelize = new Sequelize({
 });
 
 const client = new Commando.Client({
-  commandPrefix: "#",
+  commandPrefix: "?",
   owner: "92706551487291392"
 });
 
@@ -20,8 +20,14 @@ client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}(${client.user.id})`);
 });
 client.registry
-  .registerDefaults()
-  .registerCommandsIn(path.join(__dirname, "commands"));
+    .registerDefaultTypes()
+    .registerGroups([
+        ['music', 'Music commands'],
+        ['misc', 'Miscellaneous commands']
+    ])
+    .registerDefaultGroups()
+    .registerDefaultCommands()
+    .registerCommandsIn(path.join(__dirname, 'commands'));
 
 client
   .setProvider(

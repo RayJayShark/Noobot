@@ -4,14 +4,18 @@ module.exports = class SkipCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "resume",
-      group: "util",
+      group: "music",
       memberName: "resume",
-      description: ""
+      description: "Resumes playing if the song is paused."
     });
   }
 
   run(message) {
     const server = servers[message.guild.id];
-    server.dispatcher.resume();
+    if (server.dispatcher.paused) {
+      server.dispatcher.resume();
+    } else {
+      message.channel.send("I'm already playing.").then(message => message.delete(3000))
+    }
   }
 };

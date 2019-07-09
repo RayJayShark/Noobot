@@ -5,9 +5,9 @@ module.exports = class SkipCommand extends commando.Command {
     super(client, {
       name: "volume",
       aliases: ["vol"],
-      group: "util",
+      group: "music",
       memberName: "volume",
-      description: ""
+      description: "Changes the volume from 1-100."
     });
   }
 

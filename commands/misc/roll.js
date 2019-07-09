@@ -7,9 +7,9 @@ module.exports = class PlayCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "roll",
-      group: "util",
+      group: "misc",
       memberName: "roll",
-      description: ""
+      description: "Rolls 2-15 dice."
     });
   }
 

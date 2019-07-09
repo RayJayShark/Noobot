@@ -44,7 +44,6 @@ module.exports = class Helpers {
             }
           } else {
             let stream = YTDL(found.songs[0].get().url, {
-              quality: "highestaudio",
               filter: "audioonly"
             });
             server.dispatcher = connection.playStream(stream, streamOptions);
