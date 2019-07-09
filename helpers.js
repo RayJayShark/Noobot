@@ -1,4 +1,5 @@
 const YTDL = require("ytdl-core");
+const fs = require("fs");
 const Spotify = require("node-spotify-api");
 const ytSearch = require("yt-search");
 const ytlist = require("youtube-playlist");
@@ -20,38 +21,64 @@ module.exports = class Helpers {
     const dbserver = await this.retrieveServer(message.guild.id);
     const server = servers[message.guild.id];
     const streamOptions = { volume: 0.8 };
+    let stream;
     if (server.dispatcher) {
       streamOptions.volume = server.dispatcher._volume;
     }
 
     this.retrieveQueue(dbserver.id).then(found => {
-      if (found.songs.length > 0) {
-        YTDL.getInfo(found.songs[0].get().url, (err, info) => {
-          if (err) {
-            message.channel
-              .send(`Cannot play video.\n${err.message}`)
-              .then(message => message.delete(3000));
-            models.SongQueue.destroy({
-              where: {
-                songId: found.songs[0].get().id,
-                queueId: found.id
+      const checkQueueLength = setInterval(() => {
+        if (found.songs.length > 0) {
+          clearInterval(checkQueueLength);
+          YTDL.getInfo(found.songs[0].get().url, (err, info) => {
+            if (err) {
+              message.channel
+                .send(`Cannot play video.\n${err.message}`)
+                .then(message => message.delete(3000));
+              models.SongQueue.destroy({
+                where: {
+                  songId: found.songs[0].get().id,
+                  queueId: found.id
+                }
+              });
+              if (found.songs.length > 0) {
+                this.play(connection, message);
+              } else {
+                message.guild.voiceConnection.disconnect();
               }
-            });
-            if (found.songs.length > 0) {
-              this.play(connection, message);
             } else {
-              message.guild.voiceConnection.disconnect();
+              stream = YTDL(found.songs[0].get().url, {
+                quality: "highestaudio",
+                filter: "audioonly"
+              }).pipe(fs.createWriteStream(`downloads/${Date.now()}.mp3`));
+
+              const embed = new Discord.RichEmbed()
+                .setColor("#0099ff")
+                .setTitle(`${found.songs[0].get().title}`)
+                .setURL(`${found.songs[0].get().url}`)
+                .setAuthor(`Now Playing:`)
+                .setFooter(
+                  `Length: ${this.convertSeconds(
+                    found.songs[0].get().lengthSeconds
+                  )}`
+                );
+
+              message.channel.send(embed).then(message => {
+                message.delete(10000);
+              });
             }
-          } else {
-            let stream = YTDL(found.songs[0].get().url, {
-              filter: "audioonly"
-            });
-            server.dispatcher = connection.playStream(stream, streamOptions);
+          });
+        }
+      }, 50);
+
+      const readFile = setInterval(() => {
+        if (stream && stream.path) {
+          const stats = fs.statSync(stream.path);
+          if (stats && stats.size > 400000) {
+            clearInterval(readFile);
+            server.dispatcher = connection.playFile(stream.path, streamOptions);
             server.dispatcher.on("end", async reason => {
-              if (
-                reason === "user" ||
-                reason === "Stream is not generating quickly enough."
-              ) {
+              if (reason === "user" || reason === "stream") {
                 this.retrieveQueue(dbserver.id).then(queue => {
                   models.SongQueue.destroy({
                     where: {
@@ -69,24 +96,13 @@ module.exports = class Helpers {
                   });
                 });
               }
+              fs.unlink(stream.path, err => {
+                if (err) console.log(err);
+              });
             });
           }
-        });
-
-        const embed = new Discord.RichEmbed()
-          .setColor("#0099ff")
-          .setTitle(`${found.songs[0].get().title}`)
-          .setURL(`${found.songs[0].get().url}`)
-          .setAuthor(`Now Playing:`)
-          .setFooter(
-            `Length: ${this.convertSeconds(found.songs[0].get().lengthSeconds)}`
-          );
-
-        message.channel.send(embed).then(message => {
-          message.delete(10000);
-        });
-
-      }
+        }
+      }, 200);
     });
   }
 

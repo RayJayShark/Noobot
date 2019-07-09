@@ -97,6 +97,9 @@ module.exports = class SkipCommand extends commando.Command {
             });
           }
           helper.songQueueJoin(threeResults[arrIndex].url, queue);
+          message.channel
+          .send("Added to queue!")
+          .then(message => message.delete(2000));
         })
         .catch(err => {
           sent.delete();

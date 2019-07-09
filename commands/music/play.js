@@ -8,7 +8,8 @@ module.exports = class PlayCommand extends commando.Command {
       name: "play",
       group: "music",
       memberName: "play",
-      description: "Plays a YouTube Link/Playlist or Spotify Song/Playlist/Album Link."
+      description:
+        "Plays a YouTube Link/Playlist or Spotify Song/Playlist/Album Link."
     });
   }
 
@@ -28,6 +29,9 @@ module.exports = class PlayCommand extends commando.Command {
       ) {
         const url = await helper.searchYoutube(args);
         helper.songQueueJoin(url, queue);
+        message.channel
+          .send("Added to queue!")
+          .then(message => message.delete(2000));
       }
       //YouTube Playlist
       else if (args.includes("youtube.com/playlist")) {
@@ -35,6 +39,9 @@ module.exports = class PlayCommand extends commando.Command {
         playlist.forEach(async url => {
           helper.songQueueJoin(url, queue);
         });
+        message.channel
+          .send("Added to queue!")
+          .then(message => message.delete(2000));
       }
       //Spotify Playlist or Album Link
       else if (args.includes("spotify")) {
@@ -43,9 +50,15 @@ module.exports = class PlayCommand extends commando.Command {
           spotyPlaylist.forEach(async url => {
             helper.songQueueJoin(url, queue);
           });
+          message.channel
+          .send("Added to queue!")
+          .then(message => message.delete(2000));
         } else {
           const url = await helper.getSpotifyUrl(args);
           helper.songQueueJoin(url, queue);
+          message.channel
+          .send("Added to queue!")
+          .then(message => message.delete(2000));
         }
       }
       //Normal YouTube Link
@@ -80,7 +93,7 @@ module.exports = class PlayCommand extends commando.Command {
               if (reaction.emoji.name === "1⃣") {
                 helper.songQueueJoin(args.split("list")[0], queue);
                 waitingForReaction = false;
-                message.channel.send(`Song added to queue.`).then(message => {
+                message.channel.send(`Added to queue.`).then(message => {
                   message.delete(2000);
                   sent.delete(1900);
                 });
@@ -92,7 +105,7 @@ module.exports = class PlayCommand extends commando.Command {
                 });
                 waitingForReaction = false;
                 message.channel
-                  .send(`Added all videos to queue.`)
+                  .send(`Added all to queue.`)
                   .then(message => {
                     message.delete(2000);
                     sent.delete(2000);
@@ -102,6 +115,9 @@ module.exports = class PlayCommand extends commando.Command {
             .catch(err => sent.delete());
         } else {
           helper.songQueueJoin(args, queue);
+          message.channel
+          .send("Added to queue!")
+          .then(message => message.delete(2000));
         }
       }
       if (!message.guild.voiceConnection) {
