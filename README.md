@@ -1,16 +1,17 @@
+# Noobot
+
+Just A Simple Discord Music Bot.
+Allows you to play  Youtube Links/Playlists.
+Also converts Spotify Track/Album/Playlist Links To Youtube Links.
+
+Stores songs/queues/playlists in a SQLite Database.
+
 ## Install
 `apt install ffmpeg`
 
 `npm install`
 
 `npx sequelize-cli db:migrate`
-
-## About
-Just A Simple Discord Music Bot.
-Allows you to play  Youtube Links/Playlists.
-Also converts Spotify Track/Album/Playlist Links To Youtube Links.
-
-Stores songs/queues/playlists in a SQLite Database.
 
 ## Commands
 
