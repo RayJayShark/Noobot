@@ -1,6 +1,8 @@
 ## Install
 `apt install ffmpeg`
+
 `npm install`
+
 `npx sequelize-cli db:migrate`
 
 ## About
