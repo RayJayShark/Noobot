@@ -12,7 +12,8 @@ module.exports = class PlaylistCommand extends commando.Command {
       aliases: ["pl"],
       group: "music",
       memberName: "playlist",
-      description: "Create, add, remove, view, play, delete, playlists. List shows all playlists in current server."
+      description:
+        "Create, add, remove, view, play, delete, playlists. List shows all playlists in current server."
     });
   }
 
@@ -56,6 +57,9 @@ module.exports = class PlaylistCommand extends commando.Command {
               spotyPlaylist.forEach(async url => {
                 helper.songPlaylistJoin(url, playlist);
               });
+              message.channel
+                .send(`Added to \`${plName}\`.`)
+                .then(message => message.delete(2000));
             }
             //Spotify Album
             else if (url.includes("/album/")) {
@@ -63,11 +67,17 @@ module.exports = class PlaylistCommand extends commando.Command {
               for (let i = 0; i < spotyAlbum.length; i++) {
                 helper.songPlaylistJoin(spotyAlbum[i], playlist);
               }
+              message.channel
+                .send(`Added to \`${plName}\`.`)
+                .then(message => message.delete(2000));
             }
             //Regular Spotify Link
             else {
               const url = await helper.getSpotifyUrl(args);
               helper.songPlaylistJoin(url, playlist);
+              message.channel
+                .send(`Added to \`${plName}\`.`)
+                .then(message => message.delete(2000));
             }
           }
           //YouTube Playlist
@@ -76,6 +86,9 @@ module.exports = class PlaylistCommand extends commando.Command {
             ytPlaylistUrls.forEach(url => {
               helper.songPlaylistJoin(url, playlist);
             });
+            message.channel
+              .send(`Added to \`${plName}\`.`)
+              .then(message => message.delete(2000));
           }
           //Currently playing song
           else if (url === "nowplaying") {
@@ -91,9 +104,12 @@ module.exports = class PlaylistCommand extends commando.Command {
                 playlistId: playlist.id
               }
             });
+            message.channel
+              .send(`Added to \`${plName}\`.`)
+              .then(message => message.delete(2000));
           }
           //Regular YouTube Link
-          else {
+          else if (args.includes("youtube") || args.includes("youtu.be")) {
             //Playlist Checker
             if (url.includes("?list") || url.includes("&list")) {
               const filter = (reaction, user) => {
@@ -130,13 +146,18 @@ module.exports = class PlaylistCommand extends commando.Command {
                       helper.songPlaylistJoin(url, playlist);
                     });
                     message.channel
-                      .send(`Added all videos to ${plName}`)
+                      .send(`Added all videos to \`${plName}\`.`)
                       .then(message => {
                         message.delete(2000);
                         sent.delete(2000);
                       });
                   }
                 });
+            } else {
+              helper.songPlaylistJoin(url, playlist);
+              message.channel
+                .send(`Added to \`${plName}\`.`)
+                .then(message => message.delete(2000));
             }
           }
         } else if (playlist && playlist.get().createdBy !== message.author.id) {
@@ -170,6 +191,7 @@ module.exports = class PlaylistCommand extends commando.Command {
               }).then(join => {
                 if (join) {
                   join.destroy();
+                  message.channel.send(`Successfully removed from \`${plName}\``).then(message => message.delete(3000))
                 } else {
                   message.reply(
                     `The URL you're trying to remove is not in the Playlist: \`${plName.toLowerCase()}\`.`
