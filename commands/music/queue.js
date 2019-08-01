@@ -13,10 +13,20 @@ module.exports = class QueueCommand extends commando.Command {
     });
   }
 
-  async run(message) {
+  async run(message, args) {
+    const command = args.split(" ")[0].toLowerCase();
     const server = await helper.retrieveServer(message.guild.id);
     const queue = await helper.retrieveQueue(server.id);
     queue.songs.shift();
-    helper.createPagination(queue.songs, message);
+
+    if (command) {
+      switch (command) {
+        case "edit":
+          helper.createPagination(queue.songs, message, false, true);
+          break;
+      }
+    } else {
+      helper.createPagination(queue.songs, message);
+    }
   }
 };

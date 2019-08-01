@@ -13,7 +13,9 @@ global.sequelize = new Sequelize({
 
 const client = new Commando.Client({
   commandPrefix: "?",
-  owner: "92706551487291392"
+  owner: "92706551487291392",
+  disableEveryone: true,
+  unknownCommandResponse: false
 });
 
 client.once("ready", () => {

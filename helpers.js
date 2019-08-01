@@ -74,7 +74,7 @@ module.exports = class Helpers {
       const readFile = setInterval(() => {
         if (stream && stream.path) {
           const stats = fs.statSync(stream.path);
-          if (stats && stats.size > 400000) {
+          if (stats && stats.size > 20000) {
             clearInterval(readFile);
             server.dispatcher = connection.playFile(stream.path, streamOptions);
             server.dispatcher.on("end", async reason => {
@@ -457,7 +457,7 @@ module.exports = class Helpers {
     });
   }
 
-  static async createPagination(array, message, playlistList) {
+  static async createPagination(array, message, playlistList, edit) {
     let arrStart = 0;
     let arrEnd = 5;
     let currentPage = 1;
@@ -509,9 +509,11 @@ module.exports = class Helpers {
         pageinateEmbed
           .setFooter(`Page ${currentPage} of ${pageTotal}`)
           .setAuthor(
-            `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
-              totalLength
-            )}`
+            edit
+              ? "Reply with the Song Number to Delete from Queue"
+              : `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
+                  totalLength
+                )}`
           );
       }
 
@@ -521,21 +523,22 @@ module.exports = class Helpers {
     async function waitReaction(sent, currentPage, pageTotal, arr) {
       const filter = (reaction, user) => {
         return (
-          ["⬅", "➡", "❌"].includes(reaction.emoji.name) &&
-          user.id === message.author.id
+          ["⬅", "➡", "❌", "1⃣", "2⃣", "3⃣", "4⃣", "5⃣"].includes(
+            reaction.emoji.name
+          ) && user.id === message.author.id
         );
       };
 
       sent
         .react("⬅")
-        .catch(err => earlyEmoteReact())
-        .then(() => sent.react("❌").catch(err => earlyEmoteReact()))
-        .then(() => sent.react("➡").catch(err => earlyEmoteReact()));
+        .catch(err => Helpers.earlyEmoteReact())
+        .then(() => sent.react("❌").catch(err => Helpers.earlyEmoteReact()))
+        .then(() => sent.react("➡").catch(err => Helpers.earlyEmoteReact()));
 
       sent
         .awaitReactions(filter, {
           max: 1,
-          time: 10000,
+          time: 30000,
           errors: ["time"]
         })
         .then(async collected => {
@@ -569,14 +572,12 @@ module.exports = class Helpers {
           sent
             .edit(embed)
             .catch(err => {
-              earlyEmoteReact();
+              Helpers.earlyEmoteReact();
             })
-            .then(message =>
-              waitReaction(message, currentPage, pageTotal, array)
-            );
+            .then(() => waitReaction(sent, currentPage, pageTotal, array));
         })
         .catch(err => {
-          sent.delete().catch(err => earlyEmoteReact());
+          sent.delete().catch(err => Helpers.earlyEmoteReact());
         });
     }
 
@@ -587,14 +588,37 @@ module.exports = class Helpers {
       currentPage,
       pageTotal
     );
+    let sentId;
+    message.channel.send(embed).then(message => {
+      sentId = message.id;
+      waitReaction(message, currentPage, pageTotal, array);
+    });
 
-    message.channel
-      .send(embed)
-      .then(message => waitReaction(message, currentPage, pageTotal, array));
-
-    //This is here if someone clicks an emote before all 3 are reacted to the message.
-    function earlyEmoteReact() {
-      return;
+    if (edit) {
+      const collector = new Discord.MessageCollector(
+        message.channel,
+        m => m.author.id === message.author.id,
+        { max: 1, time: 30000, errors: ["time"] }
+      );
+      collector.on("collect", async message => {
+        const selected = parseInt(message.content);
+        if (selected !== NaN) {
+          if (array[selected - 1]) {
+            let server = await Helpers.retrieveServer(message.guild.id);
+            let queue = await Helpers.retrieveQueue(server.id);
+            models.SongQueue.destroy({
+              where: { queueId: queue.id, songId: array[selected - 1].id }
+            }).then(() => {
+              message.channel
+                .fetchMessage(sentId)
+                .then(message => message.delete());
+              message.channel
+                .send("Song removed from Queue!")
+                .then(message => message.delete(3000));
+            });
+          }
+        }
+      });
     }
   }
 
@@ -614,5 +638,10 @@ module.exports = class Helpers {
         ? seconds + "s"
         : "0s");
     return result;
+  }
+
+  //This is here if someone clicks an emote before all 3 are reacted to the message.
+  static earlyEmoteReact() {
+    return;
   }
 };
