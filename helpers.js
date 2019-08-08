@@ -176,7 +176,13 @@ module.exports = class Helpers {
     });
   }
 
-  static searchYoutube(search, artist, trackName, duration, albumName) {
+  static searchYoutube(
+    search,
+    artist,
+    trackName,
+    duration,
+    albumName
+  ) {
     return new Promise((resolve, reject) => {
       const opts = {
         query: search,
@@ -188,59 +194,68 @@ module.exports = class Helpers {
           reject(err);
         }
         const videos = r.videos;
+        if (videos.length === 0) {
+          resolve("Quota");
+        } else {
+          if ((artist, trackName, duration, albumName)) {
+            const filtered = videos.filter(video => {
+              const exp = XRegExp(`[\\p{L}\\p{Nd}]+`);
+              const videoTitle = XRegExp.match(video.title, exp, "all").join(
+                " "
+              );
+              const searchTitle = XRegExp.match(trackName, exp, "all");
+              return (
+                (searchTitle.some(word => videoTitle.includes(word)) &&
+                  video.seconds - duration <= 2 &&
+                  video.seconds - duration >= 0) ||
+                (searchTitle.some(word => videoTitle.includes(word)) &&
+                  duration - video.seconds <= 2 &&
+                  duration - video.seconds >= 0)
+              );
+            });
 
-        if ((artist, trackName, duration, albumName)) {
-          const filtered = videos.filter(video => {
-            const exp = XRegExp(`[\\p{L}\\p{Nd}]+`);
-            const videoTitle = XRegExp.match(video.title, exp, "all").join(" ");
-            const searchTitle = XRegExp.match(trackName, exp, "all");
-            return (
-              (searchTitle.some(word => videoTitle.includes(word)) &&
-                video.seconds - duration <= 2 &&
-                video.seconds - duration >= 0) ||
-              (searchTitle.some(word => videoTitle.includes(word)) &&
-                duration - video.seconds <= 2 &&
-                duration - video.seconds >= 0)
-            );
-          });
+            const official = filtered.filter(video => {
+              return video.author.name
+                .toLowerCase()
+                .includes(artist.toLowerCase());
+            });
 
-          const official = filtered.filter(video => {
-            return video.author.name
-              .toLowerCase()
-              .includes(artist.toLowerCase());
-          });
-
-          let largestFiltered = filtered[0];
-          for (let i = 0; i < filtered.length; i++) {
-            if (filtered[i].views > largestFiltered.views) {
-              largestFiltered = filtered[i];
+            let largestFiltered = filtered[0];
+            for (let i = 0; i < filtered.length; i++) {
+              if (filtered[i].views > largestFiltered.views) {
+                largestFiltered = filtered[i];
+              }
             }
+
+            const lastResort = videos.filter(video => {
+              return (
+                (!video.title.toLowerCase().includes("live") && 
+                  !video.title.toLowerCase().includes("cover") &&
+                  video.seconds - duration <= 10 &&
+                  video.seconds - duration >= 0) ||
+                (!video.title.toLowerCase().includes("live") && 
+                  !video.title.toLowerCase().includes("cover") &&
+                  duration - video.seconds <= 10 &&
+                  duration - video.seconds >= 0)
+              );
+            });
+
+            const newUrl =
+              official.length > 0
+                ? `https://www.youtube.com${official[0].url}`
+                : largestFiltered
+                ? `https://www.youtube.com${largestFiltered.url}`
+                : lastResort.length > 0
+                ? `https://www.youtube.com${lastResort[0].url}`
+                : videos.legnth > 0
+                ? `https://www.youtube.com${videos[0].url}`
+                : "Quota"
+            resolve(newUrl);
           }
 
-          const lastResort = videos.filter(video => {
-            return (
-              (!video.title.toLowerCase().includes("live") &&
-                video.seconds - duration <= 10 &&
-                video.seconds - duration >= 0) ||
-              (!video.title.toLowerCase().includes("live") &&
-                duration - video.seconds <= 10 &&
-                duration - video.seconds >= 0)
-            );
-          });
-
-          const newUrl =
-            official.length > 0
-              ? `https://www.youtube.com${official[0].url}`
-              : largestFiltered
-              ? `https://www.youtube.com${largestFiltered.url}`
-              : lastResort > 0
-              ? `https://www.youtube.com${lastResort[0].url}`
-              : `https://www.youtube.com${videos[0].url}`;
+          const newUrl = `https://www.youtube.com${videos[0].url}`;
           resolve(newUrl);
         }
-
-        const newUrl = `https://www.youtube.com${videos[0].url}`;
-        resolve(newUrl);
       });
     });
   }
@@ -369,7 +384,7 @@ module.exports = class Helpers {
     });
   }
 
-  static ytSearchWithChoice(search) {
+  static ytSearchWithChoice(search, message) {
     return new Promise((resolve, reject) => {
       const opts = {
         query: search,
@@ -381,26 +396,32 @@ module.exports = class Helpers {
           reject(err);
         }
         const videos = r.videos;
-        resolve([
-          {
-            title: videos[0].title,
-            url: `https://www.youtube.com${videos[0].url}`,
-            lengthSeconds: videos[0].seconds,
-            author: videos[0].author.name
-          },
-          {
-            title: videos[1].title,
-            url: `https://www.youtube.com${videos[1].url}`,
-            lengthSeconds: videos[1].seconds,
-            author: videos[1].author.name
-          },
-          {
-            title: videos[2].title,
-            url: `https://www.youtube.com${videos[2].url}`,
-            lengthSeconds: videos[2].seconds,
-            author: videos[2].author.name
-          }
-        ]);
+        if (videos.length === 0) {
+          message.channel
+            .send("Reached maximum YouTube Quota, wait a few minutes and try again.")
+            .then(message => message.delete(5000));
+        } else {
+          resolve([
+            {
+              title: videos[0].title,
+              url: `https://www.youtube.com${videos[0].url}`,
+              lengthSeconds: videos[0].seconds,
+              author: videos[0].author.name
+            },
+            {
+              title: videos[1].title,
+              url: `https://www.youtube.com${videos[1].url}`,
+              lengthSeconds: videos[1].seconds,
+              author: videos[1].author.name
+            },
+            {
+              title: videos[2].title,
+              url: `https://www.youtube.com${videos[2].url}`,
+              lengthSeconds: videos[2].seconds,
+              author: videos[2].author.name
+            }
+          ]);
+        }
       });
     });
   }
@@ -613,7 +634,7 @@ module.exports = class Helpers {
                 .fetchMessage(sentId)
                 .then(message => message.delete());
               message.channel
-                .send("Song removed from Queue!")
+                .send(`${array[selected - 1].title} removed from Queue!`)
                 .then(message => message.delete(3000));
             });
           }

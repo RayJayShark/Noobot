@@ -27,11 +27,19 @@ module.exports = class PlayCommand extends commando.Command {
         !args.includes("youtu.be") &&
         !args.includes("spotify")
       ) {
-        const url = await helper.searchYoutube(args);
-        helper.songQueueJoin(url, queue);
-        message.channel
-          .send("Added to queue!")
-          .then(message => message.delete(2000));
+        const url = await helper.searchYoutube(args, message);
+        if (url === "Quota") {
+          message.channel
+            .send(
+              "Reached maximum YouTube Quota, wait a few minutes and try again."
+            )
+            .then(message => message.delete(5000));
+        } else {
+          helper.songQueueJoin(url, queue);
+          message.channel
+            .send("Added to queue!")
+            .then(message => message.delete(2000));
+        }
       }
       //YouTube Playlist
       else if (args.includes("youtube.com/playlist")) {
@@ -46,26 +54,43 @@ module.exports = class PlayCommand extends commando.Command {
       //Spotify Playlist or Album Link
       else if (args.includes("spotify")) {
         if (args.includes("/playlist/") || args.includes("/album/")) {
-          const spotyPlaylist = [...(await helper.getSpotifyUrl(args))];
-          spotyPlaylist.forEach(async url => {
-            helper.songQueueJoin(url, queue);
-          });
-          message.channel
-          .send("Added to queue!")
-          .then(message => message.delete(2000));
+          const spotyPlaylist = [
+            ...(await helper.getSpotifyUrl(args, message))
+          ];
+          if (spotyPlaylist[0] === "Quota") {
+            message.channel
+              .send(
+                "Reached maximum YouTube Quota, wait a few minutes and try again."
+              )
+              .then(message => message.delete(5000));
+          } else {
+            spotyPlaylist.forEach(async url => {
+              helper.songQueueJoin(url, queue);
+            });
+            message.channel
+              .send("Added to queue!")
+              .then(message => message.delete(2000));
+          }
         } else {
-          const url = await helper.getSpotifyUrl(args);
-          helper.songQueueJoin(url, queue);
-          message.channel
-          .send("Added to queue!")
-          .then(message => message.delete(2000));
+          const url = await helper.getSpotifyUrl(args, message);
+          if (url === "Quota") {
+            message.channel
+              .send(
+                "Reached maximum YouTube Quota, wait a few minutes and try again."
+              )
+              .then(message => message.delete(5000));
+          } else {
+            helper.songQueueJoin(url, queue);
+            message.channel
+              .send("Added to queue!")
+              .then(message => message.delete(2000));
+          }
         }
       }
       //Normal YouTube Link
       else if (args.includes("youtube") || args.includes("youtu.be")) {
         if (args.includes("?list") || args.includes("&list")) {
           waitingForReaction = true;
-
           const filter = (reaction, user) => {
             return (
               ["1⃣", "2⃣"].includes(reaction.emoji.name) &&
@@ -104,28 +129,26 @@ module.exports = class PlayCommand extends commando.Command {
                   helper.songQueueJoin(url, queue);
                 });
                 waitingForReaction = false;
-                message.channel
-                  .send(`Added all to queue.`)
-                  .then(message => {
-                    message.delete(2000);
-                    sent.delete(2000);
-                  });
+                message.channel.send(`Added all to queue.`).then(message => {
+                  message.delete(2000);
+                  sent.delete(2000);
+                });
               }
             })
             .catch(err => sent.delete());
         } else {
           helper.songQueueJoin(args, queue);
           message.channel
-          .send("Added to queue!")
-          .then(message => message.delete(2000));
+            .send("Added to queue!")
+            .then(message => message.delete(2000));
         }
       }
       if (!message.guild.voiceConnection) {
-        helper.retrieveQueue(dbserver.id).then(queue => {
-          if (queue) {
-            const awaitReaction = setInterval(() => {
-              if (!waitingForReaction) {
-                clearInterval(awaitReaction);
+        const awaitReaction = setInterval(() => {
+          if (!waitingForReaction) {
+            clearInterval(awaitReaction);
+            helper.retrieveQueue(dbserver.id).then(queue => {
+              if (queue.songs.length > 0) {
                 message.member.voiceChannel
                   .join()
                   .then(connection => {
@@ -137,9 +160,9 @@ module.exports = class PlayCommand extends commando.Command {
                       .then(message => message.delete(3000));
                   });
               }
-            }, 1000);
+            });
           }
-        });
+        }, 1000);
       }
     } else {
       message.reply("You need to be in a voice channel.");

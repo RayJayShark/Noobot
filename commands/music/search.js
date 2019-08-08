@@ -14,7 +14,7 @@ module.exports = class SkipCommand extends commando.Command {
 
   async run(message, args) {
     if (message.member.voiceChannel) {
-      const threeResults = await helper.ytSearchWithChoice(args);
+      const threeResults = await helper.ytSearchWithChoice(args, message);
       const server = await helper.retrieveServer(message.guild.id);
       const queue = await helper.retrieveQueue(server.id);
       const filter = (reaction, user) => {

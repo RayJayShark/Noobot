@@ -63,30 +63,54 @@ module.exports = class PlaylistCommand extends commando.Command {
                 //Spotify Playlist
                 if (url.includes("/playlist/")) {
                   const spotyPlaylist = [...(await helper.getSpotifyUrl(url))];
-                  spotyPlaylist.forEach(async url => {
-                    helper.songPlaylistJoin(url, playlist);
-                  });
-                  message.channel
-                    .send(`Added to \`${plName}\`.`)
-                    .then(message => message.delete(2000));
+                  if (spotyPlaylist[0] === "Quota") {
+                    message.channel
+                      .send(
+                        "Reached maximum YouTube Quota, wait a few minutes and try again."
+                      )
+                      .then(message => message.delete(5000));
+                  } else {
+                    spotyPlaylist.forEach(async url => {
+                      helper.songPlaylistJoin(url, playlist);
+                    });
+                    message.channel
+                      .send(`Added to \`${plName}\`.`)
+                      .then(message => message.delete(2000));
+                  }
                 }
                 //Spotify Album
                 else if (url.includes("/album/")) {
                   const spotyAlbum = [...(await helper.getSpotifyUrl(url))];
-                  for (let i = 0; i < spotyAlbum.length; i++) {
-                    helper.songPlaylistJoin(spotyAlbum[i], playlist);
+                  if (spotyAlbum[0] === "Quota") {
+                    message.channel
+                      .send(
+                        "Reached maximum YouTube Quota, wait a few minutes and try again."
+                      )
+                      .then(message => message.delete(5000));
+                  } else {
+                    for (let i = 0; i < spotyAlbum.length; i++) {
+                      helper.songPlaylistJoin(spotyAlbum[i], playlist);
+                    }
+                    message.channel
+                      .send(`Added to \`${plName}\`.`)
+                      .then(message => message.delete(2000));
                   }
-                  message.channel
-                    .send(`Added to \`${plName}\`.`)
-                    .then(message => message.delete(2000));
                 }
                 //Regular Spotify Link
                 else {
                   const url = await helper.getSpotifyUrl(args);
-                  helper.songPlaylistJoin(url, playlist);
-                  message.channel
-                    .send(`Added to \`${plName}\`.`)
-                    .then(message => message.delete(2000));
+                  if (url === "Quota") {
+                    message.channel
+                      .send(
+                        "Reached maximum YouTube Quota, wait a few minutes and try again."
+                      )
+                      .then(message => message.delete(5000));
+                  } else {
+                    helper.songPlaylistJoin(url, playlist);
+                    message.channel
+                      .send(`Added to \`${plName}\`.`)
+                      .then(message => message.delete(2000));
+                  }
                 }
               }
               //YouTube Playlist
