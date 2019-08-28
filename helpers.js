@@ -176,13 +176,7 @@ module.exports = class Helpers {
     });
   }
 
-  static searchYoutube(
-    search,
-    artist,
-    trackName,
-    duration,
-    albumName
-  ) {
+  static searchYoutube(search, artist, trackName, duration, albumName) {
     return new Promise((resolve, reject) => {
       const opts = {
         query: search,
@@ -229,11 +223,11 @@ module.exports = class Helpers {
 
             const lastResort = videos.filter(video => {
               return (
-                (!video.title.toLowerCase().includes("live") && 
+                (!video.title.toLowerCase().includes("live") &&
                   !video.title.toLowerCase().includes("cover") &&
                   video.seconds - duration <= 10 &&
                   video.seconds - duration >= 0) ||
-                (!video.title.toLowerCase().includes("live") && 
+                (!video.title.toLowerCase().includes("live") &&
                   !video.title.toLowerCase().includes("cover") &&
                   duration - video.seconds <= 10 &&
                   duration - video.seconds >= 0)
@@ -249,7 +243,7 @@ module.exports = class Helpers {
                 ? `https://www.youtube.com${lastResort[0].url}`
                 : videos.legnth > 0
                 ? `https://www.youtube.com${videos[0].url}`
-                : "Quota"
+                : "Quota";
             resolve(newUrl);
           }
 
@@ -348,9 +342,8 @@ module.exports = class Helpers {
 
   static async songQueueJoin(url, queue) {
     models.Song.findOne({ where: { url } }).then(async song => {
-      if (!song) {
+      if (song === null) {
         const { title, lengthSeconds } = await this.youTubeApiSearch(url);
-
         models.Song.create({ title, url, lengthSeconds }).then(song => {
           models.SongQueue.findOne({
             where: {
@@ -398,7 +391,9 @@ module.exports = class Helpers {
         const videos = r.videos;
         if (videos.length === 0) {
           message.channel
-            .send("Reached maximum YouTube Quota, wait a few minutes and try again.")
+            .send(
+              "Reached maximum YouTube Quota, wait a few minutes and try again."
+            )
             .then(message => message.delete(5000));
         } else {
           resolve([
@@ -442,9 +437,8 @@ module.exports = class Helpers {
       } else if (url.includes("youtu.be")) {
         videoId = url.match(/(?<=be\/)[\D\d]+/);
       }
-
       request(
-        youtubeUrl + videoId + process.env.YOUTUBE_API,
+        youtubeUrl + videoId[0] + process.env.YOUTUBE_API,
         (error, response, body) => {
           const result = JSON.parse(body);
           if (!result.items) {

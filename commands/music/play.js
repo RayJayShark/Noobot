@@ -72,7 +72,9 @@ module.exports = class PlayCommand extends commando.Command {
               .then(message => message.delete(2000));
           }
         } else {
+          //Single Song Spotify Search
           const url = await helper.getSpotifyUrl(args, message);
+          console.log(url);
           if (url === "Quota") {
             message.channel
               .send(
