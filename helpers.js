@@ -533,7 +533,13 @@ module.exports = class Helpers {
       return pageinateEmbed;
     }
 
-    async function waitReaction(sent, currentPage, pageTotal, arr) {
+    async function waitReaction(
+      sent,
+      currentPage,
+      pageTotal,
+      arr,
+      messageApproval
+    ) {
       const filter = (reaction, user) => {
         return (
           ["⬅", "➡", "❌", "1⃣", "2⃣", "3⃣", "4⃣", "5⃣"].includes(
@@ -602,19 +608,14 @@ module.exports = class Helpers {
       currentPage,
       pageTotal
     );
-    let sentId;
-    message.channel.send(embed).then(message => {
-      sentId = message.id;
-      waitReaction(message, currentPage, pageTotal, array);
-    });
-
+    let messageApproval;
     if (edit) {
       const collector = new Discord.MessageCollector(
         message.channel,
         m => m.author.id === message.author.id,
         { max: 1, time: 30000, errors: ["time"] }
       );
-      const messageApproval = await message.reply(
+      messageApproval = await message.reply(
         "Reply with song number to delete it."
       );
       collector.on("collect", async message => {
@@ -638,6 +639,18 @@ module.exports = class Helpers {
         }
       });
     }
+
+    let sentId;
+    message.channel.send(embed).then(message => {
+      sentId = message.id;
+      waitReaction(
+        message,
+        currentPage,
+        pageTotal,
+        array,
+        edit ? messageApproval : null
+      );
+    });
   }
 
   static convertSeconds(sec) {
