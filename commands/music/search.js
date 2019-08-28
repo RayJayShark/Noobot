@@ -2,13 +2,14 @@ const commando = require("discord.js-commando");
 const helper = require("../../helpers");
 const Discord = require("discord.js");
 
-module.exports = class SkipCommand extends commando.Command {
+module.exports = class SearchCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "search",
       group: "music",
       memberName: "search",
-      description: "Searches YouTube - Returns Top 3 Results with reaction choice."
+      description:
+        "Searches YouTube - Returns Top 3 Results with reaction choice."
     });
   }
 
@@ -98,8 +99,8 @@ module.exports = class SkipCommand extends commando.Command {
           }
           helper.songQueueJoin(threeResults[arrIndex].url, queue);
           message.channel
-          .send("Added to queue!")
-          .then(message => message.delete(2000));
+            .send("Added to queue!")
+            .then(message => message.delete(2000));
         })
         .catch(err => {
           sent.delete();

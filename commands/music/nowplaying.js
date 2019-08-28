@@ -4,7 +4,7 @@ const { RichEmbed } = require("discord.js");
 const helper = require("../../helpers");
 const models = require("../../models");
 
-module.exports = class PlayCommand extends commando.Command {
+module.exports = class NowPlayingCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "nowplaying",

@@ -1,6 +1,6 @@
 const commando = require("discord.js-commando");
 
-module.exports = class SkipCommand extends commando.Command {
+module.exports = class ResumeCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "resume",
@@ -15,7 +15,9 @@ module.exports = class SkipCommand extends commando.Command {
     if (server.dispatcher.paused) {
       server.dispatcher.resume();
     } else {
-      message.channel.send("I'm already playing.").then(message => message.delete(3000))
+      message.channel
+        .send("I'm already playing.")
+        .then(message => message.delete(3000));
     }
   }
 };
