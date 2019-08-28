@@ -644,6 +644,7 @@ module.exports = class Helpers {
                 message.channel
                   .send(`\`${array[selected - 1].title}\` removed from Queue!`)
                   .then(message => message.delete(5000));
+                collector.stop();
               });
             } else {
               const plName = originalMessage.content.split(" ")[2];
@@ -666,6 +667,7 @@ module.exports = class Helpers {
                     `\`${array[selected - 1].title}\` removed from Playlist!`
                   )
                   .then(message => message.delete(5000));
+                collector.stop();
               });
             }
           }
