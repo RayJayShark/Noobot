@@ -642,8 +642,8 @@ module.exports = class Helpers {
                   messageApproval.delete();
                 });
                 message.channel
-                  .send(`${array[selected - 1].title} removed from Queue!`)
-                  .then(message => message.delete(3000));
+                  .send(`\`${array[selected - 1].title}\` removed from Queue!`)
+                  .then(message => message.delete(5000));
               });
             } else {
               const plName = originalMessage.content.split(" ")[2];
@@ -662,8 +662,10 @@ module.exports = class Helpers {
                   messageApproval.delete();
                 });
                 message.channel
-                  .send(`${array[selected - 1].title} removed from Playlist!`)
-                  .then(message => message.delete(3000));
+                  .send(
+                    `\`${array[selected - 1].title}\` removed from Playlist!`
+                  )
+                  .then(message => message.delete(5000));
               });
             }
           }
