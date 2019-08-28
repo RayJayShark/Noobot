@@ -562,6 +562,7 @@ module.exports = class Helpers {
             arrEnd -= 5;
           } else if (reaction.emoji.name === "❌") {
             sent.delete(100);
+            messageApproval ? messageApproval.delete(100) : null;
           } else if (reaction.emoji.name === "➡" && currentPage !== pageTotal) {
             currentPage++;
             arrStart += 5;
