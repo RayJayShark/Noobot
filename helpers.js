@@ -613,7 +613,7 @@ module.exports = class Helpers {
         m => m.author.id === message.author.id,
         { max: 1, time: 30000, errors: ["time"] }
       );
-      const messageApproval = await message.author.reply(
+      const messageApproval = await message.reply(
         "Reply with song number to delete it."
       );
       collector.on("collect", async message => {
