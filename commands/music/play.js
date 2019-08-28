@@ -74,7 +74,6 @@ module.exports = class PlayCommand extends commando.Command {
         } else {
           //Single Song Spotify Search
           const url = await helper.getSpotifyUrl(args, message);
-          console.log(url);
           if (url === "Quota") {
             message.channel
               .send(
