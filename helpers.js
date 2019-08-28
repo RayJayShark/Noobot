@@ -447,7 +447,7 @@ module.exports = class Helpers {
         youtubeUrl + videoId + process.env.YOUTUBE_API,
         (error, response, body) => {
           const result = JSON.parse(body);
-          if (result.items.length === 0) {
+          if (!result.items) {
             return;
           } else {
             const duration = result.items[0].contentDetails.duration;
