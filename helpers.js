@@ -472,7 +472,7 @@ module.exports = class Helpers {
     });
   }
 
-  static async createPagination(array, message, playlistList, edit) {
+  static async createPagination(array, message, playlistList, edit, playlist) {
     let arrStart = 0;
     let arrEnd = 5;
     let currentPage = 1;
@@ -610,6 +610,7 @@ module.exports = class Helpers {
     );
     let messageApproval;
     if (edit) {
+      const originalMessage = message;
       const collector = new Discord.MessageCollector(
         message.channel,
         m => m.author.id === message.author.id,
@@ -623,18 +624,40 @@ module.exports = class Helpers {
         if (selected !== NaN) {
           if (array[selected - 1]) {
             let server = await Helpers.retrieveServer(message.guild.id);
-            let queue = await Helpers.retrieveQueue(server.id);
-            models.SongQueue.destroy({
-              where: { queueId: queue.id, songId: array[selected - 1].id }
-            }).then(() => {
-              message.channel.fetchMessage(sentId).then(message => {
-                message.delete();
-                messageApproval.delete();
+            if (!playlist) {
+              let queue = await Helpers.retrieveQueue(server.id);
+              models.SongQueue.destroy({
+                where: { queueId: queue.id, songId: array[selected - 1].id }
+              }).then(() => {
+                message.channel.fetchMessage(sentId).then(message => {
+                  message.delete();
+                  messageApproval.delete();
+                });
+                message.channel
+                  .send(`${array[selected - 1].title} removed from Queue!`)
+                  .then(message => message.delete(3000));
               });
-              message.channel
-                .send(`${array[selected - 1].title} removed from Queue!`)
-                .then(message => message.delete(3000));
-            });
+            } else {
+              const plName = originalMessage.content.split(" ")[2];
+              const playlist = await Helpers.retrievePlaylist(
+                plName,
+                server.id
+              );
+              models.SongPlaylist.destroy({
+                where: {
+                  playlistId: playlist.id,
+                  songId: array[selected - 1].id
+                }
+              }).then(() => {
+                message.channel.fetchMessage(sentId).then(message => {
+                  message.delete();
+                  messageApproval.delete();
+                });
+                message.channel
+                  .send(`${array[selected - 1].title} removed from Playlist!`)
+                  .then(message => message.delete(3000));
+              });
+            }
           }
         }
       });

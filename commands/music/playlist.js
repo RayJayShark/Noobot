@@ -13,7 +13,7 @@ module.exports = class PlaylistCommand extends commando.Command {
       group: "music",
       memberName: "playlist",
       description:
-        "Create, add, remove, view, play, delete, playlists. List shows all playlists in current server."
+        "Create, add, edit, remove, view, play, delete, playlists. List shows all playlists in current server."
     });
   }
 
@@ -253,6 +253,21 @@ module.exports = class PlaylistCommand extends commando.Command {
             server.id
           );
           helper.createPagination(playlist.get().songs, message);
+          break;
+
+        case "edit":
+          playlist = await helper.retrievePlaylist(
+            plName.toLowerCase(),
+            server.id
+          );
+
+          helper.createPagination(
+            playlist.get().songs,
+            message,
+            false,
+            true,
+            true
+          );
           break;
         case "play":
           playlist = await helper.retrievePlaylist(
