@@ -622,7 +622,7 @@ module.exports = class Helpers {
       const collector = new Discord.MessageCollector(
         message.channel,
         m => m.author.id === message.author.id,
-        { max: 1, time: 30000, errors: ["time"] }
+        { time: 30000, errors: ["time"] }
       );
       messageApproval = await message.reply(
         "Reply with song number to delete it."
