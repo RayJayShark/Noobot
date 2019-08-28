@@ -594,7 +594,15 @@ module.exports = class Helpers {
             .catch(err => {
               Helpers.earlyEmoteReact();
             })
-            .then(() => waitReaction(sent, currentPage, pageTotal, array));
+            .then(() =>
+              waitReaction(
+                sent,
+                currentPage,
+                pageTotal,
+                array,
+                messageApproval ? messageApproval : null
+              )
+            );
         })
         .catch(err => {
           sent.delete().catch(err => Helpers.earlyEmoteReact());

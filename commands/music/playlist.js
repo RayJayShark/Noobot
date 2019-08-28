@@ -252,7 +252,13 @@ module.exports = class PlaylistCommand extends commando.Command {
             plName.toLowerCase(),
             server.id
           );
-          helper.createPagination(playlist.get().songs, message);
+          if (!playlist) {
+            message.reply(
+              `No playlist found with the name \`${plName.toLowerCase()}\`, create it first.`
+            );
+          } else {
+            helper.createPagination(playlist.get().songs, message);
+          }
           break;
 
         case "edit":
@@ -260,14 +266,19 @@ module.exports = class PlaylistCommand extends commando.Command {
             plName.toLowerCase(),
             server.id
           );
-
-          helper.createPagination(
-            playlist.get().songs,
-            message,
-            false,
-            true,
-            true
-          );
+          if (!playlist) {
+            message.reply(
+              `No playlist found with the name \`${plName.toLowerCase()}\`, create it first.`
+            );
+          } else {
+            helper.createPagination(
+              playlist.get().songs,
+              message,
+              false,
+              true,
+              true
+            );
+          }
           break;
         case "play":
           playlist = await helper.retrievePlaylist(
