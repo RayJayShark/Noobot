@@ -524,11 +524,9 @@ module.exports = class Helpers {
         pageinateEmbed
           .setFooter(`Page ${currentPage} of ${pageTotal}`)
           .setAuthor(
-            edit
-              ? "Reply with the Song Number to Delete from Queue"
-              : `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
-                  totalLength
-                )}`
+            `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
+              totalLength
+            )}`
           );
       }
 
@@ -615,6 +613,9 @@ module.exports = class Helpers {
         m => m.author.id === message.author.id,
         { max: 1, time: 30000, errors: ["time"] }
       );
+      const messageApproval = await message.author.reply(
+        "Reply with song number to delete it."
+      );
       collector.on("collect", async message => {
         const selected = parseInt(message.content);
         if (selected !== NaN) {
@@ -624,9 +625,10 @@ module.exports = class Helpers {
             models.SongQueue.destroy({
               where: { queueId: queue.id, songId: array[selected - 1].id }
             }).then(() => {
-              message.channel
-                .fetchMessage(sentId)
-                .then(message => message.delete());
+              message.channel.fetchMessage(sentId).then(message => {
+                message.delete();
+                messageApproval.delete();
+              });
               message.channel
                 .send(`${array[selected - 1].title} removed from Queue!`)
                 .then(message => message.delete(3000));
