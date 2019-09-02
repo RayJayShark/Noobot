@@ -8,6 +8,7 @@ module.exports = class NowPlayingCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "nowplaying",
+      aliases: ["np"],
       group: "music",
       memberName: "nowplaying",
       description: "Displays the current song playing with timestamp."
@@ -28,17 +29,27 @@ module.exports = class NowPlayingCommand extends commando.Command {
         });
     } else {
       const server = servers[message.guild.id];
+      const twentyDashes = "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬";
+      const playingDotIndex = Math.floor(
+        server.dispatcher.time /
+          1000 /
+          queue.songs[0].get().lengthSeconds /
+          0.05
+      );
+      const playingBar =
+        twentyDashes.slice(0, playingDotIndex) +
+        "🔵" +
+        twentyDashes.slice(playingDotIndex, 19);
       const embed = new Discord.RichEmbed()
         .setColor("#0099ff")
-        .addField(
-          `${queue.songs[0].get().title}`,
-          `${helper.convertSeconds(
+        .setTitle(`${queue.songs[0].get().title}`)
+        .setURL(`${queue.songs[0].get().url}`)
+        .setFooter(
+          `${playingBar} ${helper.convertSeconds(
             Math.floor(server.dispatcher.time / 1000)
-          )} / ${helper.convertSeconds(
-            queue.songs[0].get().lengthSeconds
-          )} - [Link](${queue.songs[0].get().url})`
+          )} /${helper.convertSeconds(queue.songs[0].get().lengthSeconds)}`
         );
-      message.channel.send(embed).then(message => message.delete(5000));
+      message.channel.send(embed).then(message => message.delete(7000));
     }
   }
 };
