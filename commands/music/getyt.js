@@ -6,7 +6,7 @@ module.exports = class GetYtCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "getyt",
-      aliases: ["yt"],
+      aliases: ["yt", "gyt"],
       group: "music",
       memberName: "getyt",
       description: "Retrieves YouTube link from Single Spotify Song URL."
