@@ -15,11 +15,7 @@ module.exports = class GetYtCommand extends commando.Command {
   async run(message, args) {
     if (args.includes("open.spotify.com/track/")) {
       const url = await helper.getSpotifyUrl(args);
-      const embed = new Discord.RichEmbed()
-        .setAuthor("YouTube URL Found!")
-        .setFooter(url)
-        .setColor("#FF0000");
-      message.channel.send(embed);
+      message.channel.send(url);
     } else {
       message.channel
         .send("This command is for Single Spotify Song URLs.")
