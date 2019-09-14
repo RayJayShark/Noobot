@@ -15,7 +15,15 @@ module.exports = class GetYtCommand extends commando.Command {
   async run(message, args) {
     if (args.includes("open.spotify.com/track/")) {
       const url = await helper.getSpotifyUrl(args);
-      message.channel.send(url);
+      if (url === "Quota") {
+        message.channel
+          .send(
+            "Reached maximum YouTube Quota, wait a few minutes and try again."
+          )
+          .then(message => message.delete(5000));
+      } else {
+        message.channel.send(url);
+      }
     } else {
       message.channel
         .send("This command is for Single Spotify Song URLs.")

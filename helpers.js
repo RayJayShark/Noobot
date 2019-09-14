@@ -241,7 +241,7 @@ module.exports = class Helpers {
                 ? `https://www.youtube.com${largestFiltered.url}`
                 : lastResort.length > 0
                 ? `https://www.youtube.com${lastResort[0].url}`
-                : videos.legnth > 0
+                : videos.length > 0
                 ? `https://www.youtube.com${videos[0].url}`
                 : "Quota";
             resolve(newUrl);
