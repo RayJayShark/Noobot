@@ -164,7 +164,7 @@ module.exports = class Helpers {
         : year;
       const duration = data.duration_ms / 1000;
       const albumName = album ? album : data.album.name;
-      const search = `${trackName} ${albumName} ${artist}`;
+      const search = `${trackName} ${artist}`;
       const url = await this.searchYoutube(
         search,
         artist,
@@ -200,10 +200,10 @@ module.exports = class Helpers {
               const searchTitle = XRegExp.match(trackName, exp, "all");
               return (
                 (searchTitle.some(word => videoTitle.includes(word)) &&
-                  video.seconds - duration <= 2 &&
+                  video.seconds - duration <= 3 &&
                   video.seconds - duration >= 0) ||
                 (searchTitle.some(word => videoTitle.includes(word)) &&
-                  duration - video.seconds <= 2 &&
+                  duration - video.seconds <= 3 &&
                   duration - video.seconds >= 0)
               );
             });
@@ -213,34 +213,11 @@ module.exports = class Helpers {
                 .toLowerCase()
                 .includes(artist.toLowerCase());
             });
-
-            let largestFiltered = filtered[0];
-            for (let i = 0; i < filtered.length; i++) {
-              if (filtered[i].views > largestFiltered.views) {
-                largestFiltered = filtered[i];
-              }
-            }
-
-            const lastResort = videos.filter(video => {
-              return (
-                (!video.title.toLowerCase().includes("live") &&
-                  !video.title.toLowerCase().includes("cover") &&
-                  video.seconds - duration <= 10 &&
-                  video.seconds - duration >= 0) ||
-                (!video.title.toLowerCase().includes("live") &&
-                  !video.title.toLowerCase().includes("cover") &&
-                  duration - video.seconds <= 10 &&
-                  duration - video.seconds >= 0)
-              );
-            });
-
             const newUrl =
               official.length > 0
                 ? `https://www.youtube.com${official[0].url}`
-                : largestFiltered
-                ? `https://www.youtube.com${largestFiltered.url}`
-                : lastResort.length > 0
-                ? `https://www.youtube.com${lastResort[0].url}`
+                : filtered.length > 0
+                ? `https://www.youtube.com${filtered[0].url}`
                 : videos.length > 0
                 ? `https://www.youtube.com${videos[0].url}`
                 : "Quota";
