@@ -187,6 +187,7 @@ module.exports = class Helpers {
         if (err) {
           reject(err);
         }
+        console.log(r);
         const videos = r.videos;
         if (videos.length === 0) {
           resolve("Quota");
