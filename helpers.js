@@ -186,8 +186,7 @@ module.exports = class Helpers {
       ytSearch(opts, (err, r) => {
         if (err) {
           reject(err);
-        }
-        console.log(r);
+        }    
         const videos = r.videos;
         if (videos.length === 0) {
           resolve("Quota");
