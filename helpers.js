@@ -1,12 +1,9 @@
-const YTDL = require("ytdl-core");
-const fs = require("fs");
 const Spotify = require("node-spotify-api");
-const ytSearch = require("yt-search");
-const ytlist = require("youtube-playlist");
-const request = require("request");
 const Discord = require("discord.js");
 const models = require("./models");
 const XRegExp = require("xregexp");
+const { URLSearchParams } = require("url");
+const fetch = require("node-fetch");
 require("dotenv").config();
 
 const spotify = new Spotify({
@@ -14,95 +11,54 @@ const spotify = new Spotify({
   secret: process.env.SPOTIFY_SECRET
 });
 
-const youtubeUrl = "https://www.googleapis.com/youtube/v3/videos?id=";
-
 module.exports = class Helpers {
-  static async play(connection, message) {
+  static async play(player, message, manager) {
     const dbserver = await this.retrieveServer(message.guild.id);
-    const server = servers[message.guild.id];
-    const streamOptions = { volume: 0.8 };
-    let stream;
-    if (server.dispatcher) {
-      streamOptions.volume = server.dispatcher._volume;
-    }
 
     this.retrieveQueue(dbserver.id).then(found => {
       const checkQueueLength = setInterval(() => {
         if (found.songs.length > 0) {
           clearInterval(checkQueueLength);
-          YTDL.getInfo(found.songs[0].get().url, (err, info) => {
-            if (err) {
-              message.channel
-                .send(`Cannot play video.\n${err.message}`)
-                .then(message => message.delete(3000));
-              models.SongQueue.destroy({
-                where: {
-                  songId: found.songs[0].get().id,
-                  queueId: found.id
-                }
-              });
-              if (found.songs.length > 0) {
-                this.play(connection, message);
-              } else {
-                message.guild.voiceConnection.disconnect();
-              }
-            } else {
-              stream = YTDL(found.songs[0].get().url, {
-                quality: "highestaudio",
-                filter: "audioonly"
-              }).pipe(fs.createWriteStream(`downloads/${Date.now()}.mp3`));
+          const embed = new Discord.RichEmbed()
+            .setColor("#0099ff")
+            .setAuthor(`Now Playing:`)
+            .setTitle(`${found.songs[0].get().title}`)
+            .setURL(`${found.songs[0].get().url}`)
+            .setFooter(
+              `Length: ${this.convertSeconds(
+                found.songs[0].get().lengthSeconds
+              )}`
+            );
 
-              const embed = new Discord.RichEmbed()
-                .setColor("#0099ff")
-                .setTitle(`${found.songs[0].get().title}`)
-                .setURL(`${found.songs[0].get().url}`)
-                .setAuthor(`Now Playing:`)
-                .setFooter(
-                  `Length: ${this.convertSeconds(
-                    found.songs[0].get().lengthSeconds
-                  )}`
-                );
+          message.channel.send(embed).then(message => {
+            message.delete(10000);
+          });
 
-              message.channel.send(embed).then(message => {
-                message.delete(10000);
+          player.play(found.songs[0].get().track);
+
+          player.once("end", msg => {
+            if (msg.reason === "REPLACED") return;
+            if (msg.reason === "FINISHED" || msg.reason === "STOPPED") {
+              this.retrieveQueue(dbserver.id).then(queue => {
+                models.SongQueue.destroy({
+                  where: {
+                    songId: queue.songs[0].get().id,
+                    queueId: queue.id
+                  }
+                }).then(() => {
+                  this.retrieveQueue(dbserver.id).then(queue => {
+                    if (queue.songs.length > 0) {
+                      this.play(player, message, manager);
+                    } else {
+                      manager.leave(message.guild.id);
+                    }
+                  });
+                });
               });
             }
           });
         }
       }, 50);
-
-      const readFile = setInterval(() => {
-        if (stream && stream.path) {
-          const stats = fs.statSync(stream.path);
-          if (stats && stats.size > 20000) {
-            clearInterval(readFile);
-            server.dispatcher = connection.playFile(stream.path, streamOptions);
-            server.dispatcher.on("end", async reason => {
-              if (reason === "user" || reason === "stream") {
-                this.retrieveQueue(dbserver.id).then(queue => {
-                  models.SongQueue.destroy({
-                    where: {
-                      songId: queue.songs[0].get().id,
-                      queueId: queue.id
-                    }
-                  }).then(() => {
-                    this.retrieveQueue(dbserver.id).then(queue => {
-                      if (queue.songs.length > 0) {
-                        this.play(connection, message, queue);
-                      } else {
-                        connection.disconnect();
-                      }
-                    });
-                  });
-                });
-              }
-              fs.unlink(stream.path, err => {
-                if (err) console.log(err);
-              });
-            });
-          }
-        }
-      }, 200);
     });
   }
 
@@ -110,13 +66,13 @@ module.exports = class Helpers {
     return new Promise(async (resolve, reject) => {
       if (args.includes("track")) {
         const trackId = args.split("/")[4].split("?")[0];
-        let url = await spotify
+        let song = await spotify
           .request(`https://api.spotify.com/v1/tracks/${trackId}`)
           .then(data => this.createYoutubeSearch(data))
           .catch(err => {
             reject(err);
           });
-        resolve(url);
+        resolve(song);
       } else if (args.includes("playlist")) {
         const playlistId = args.split("/")[4].split("?")[0];
         const queue = await spotify
@@ -165,80 +121,15 @@ module.exports = class Helpers {
       const duration = data.duration_ms / 1000;
       const albumName = album ? album : data.album.name;
       const search = `${trackName} ${artist}`;
-      const url = await this.searchYoutube(
+      const song = await this.lavalinkHelper(
         search,
         artist,
         trackName,
         duration,
         albumName
       );
-      resolve(url);
-    });
-  }
 
-  static searchYoutube(search, artist, trackName, duration, albumName) {
-    return new Promise((resolve, reject) => {
-      const opts = {
-        query: search,
-        pageStart: 1,
-        pageEnd: 2
-      };
-      ytSearch(opts, (err, r) => {
-        if (err) {
-          reject(err);
-        }    
-        const videos = r.videos;
-        if (videos.length === 0) {
-          resolve("Quota");
-        } else {
-          if ((artist, trackName, duration, albumName)) {
-            const filtered = videos.filter(video => {
-              const exp = XRegExp(`[\\p{L}\\p{Nd}]+`);
-              const videoTitle = XRegExp.match(video.title, exp, "all").join(
-                " "
-              );
-              const searchTitle = XRegExp.match(trackName, exp, "all");
-              return (
-                (searchTitle.some(word => videoTitle.includes(word)) &&
-                  video.seconds - duration <= 3 &&
-                  video.seconds - duration >= 0) ||
-                (searchTitle.some(word => videoTitle.includes(word)) &&
-                  duration - video.seconds <= 3 &&
-                  duration - video.seconds >= 0)
-              );
-            });
-
-            const official = filtered.filter(video => {
-              return video.author.name
-                .toLowerCase()
-                .includes(artist.toLowerCase());
-            });
-            const newUrl =
-              official.length > 0
-                ? `https://www.youtube.com${official[0].url}`
-                : filtered.length > 0
-                ? `https://www.youtube.com${filtered[0].url}`
-                : videos.length > 0
-                ? `https://www.youtube.com${videos[0].url}`
-                : "Quota";
-            resolve(newUrl);
-          }
-
-          const newUrl = `https://www.youtube.com${videos[0].url}`;
-          resolve(newUrl);
-        }
-      });
-    });
-  }
-
-  static async youtubePlaylist(url) {
-    const ytPlaylistId = url.match(/(?<=list=)[\D\d]+/);
-    const newUrl = "https://www.youtube.com/playlist?list=" + ytPlaylistId;
-    return new Promise(async (resolve, reject) => {
-      const playlistUrls = await ytlist(newUrl, "url").then(res => {
-        return res.data.playlist;
-      });
-      resolve(playlistUrls);
+      resolve(song);
     });
   }
 
@@ -275,16 +166,22 @@ module.exports = class Helpers {
     });
   }
 
-  static async songPlaylistJoin(url, playlist) {
+  static async songPlaylistJoin(song, playlist) {
+    const {
+      track,
+      info: { title, length, uri }
+    } = song;
+
     models.Song.findOne({
-      where: {
-        url: url
-      }
+      where: { track }
     }).then(async song => {
       if (!song) {
-        const { title, lengthSeconds } = await this.youTubeApiSearch(url);
-
-        models.Song.create({ title, url, lengthSeconds }).then(song => {
+        models.Song.create({
+          track,
+          title,
+          url: uri,
+          lengthSeconds: length / 1000
+        }).then(song => {
           models.SongPlaylist.findOne({
             where: {
               songId: song.get().id,
@@ -317,11 +214,20 @@ module.exports = class Helpers {
     });
   }
 
-  static async songQueueJoin(url, queue) {
-    models.Song.findOne({ where: { url } }).then(async song => {
+  static async songQueueJoin(video, queue) {
+    const {
+      track,
+      info: { title, uri, length }
+    } = video;
+
+    models.Song.findOne({ where: { track } }).then(async song => {
       if (song === null) {
-        const { title, lengthSeconds } = await this.youTubeApiSearch(url);
-        models.Song.create({ title, url, lengthSeconds }).then(song => {
+        models.Song.create({
+          track,
+          title,
+          url: uri,
+          lengthSeconds: length / 1000
+        }).then(song => {
           models.SongQueue.findOne({
             where: {
               songId: song.get().id,
@@ -354,98 +260,27 @@ module.exports = class Helpers {
     });
   }
 
-  static ytSearchWithChoice(search, message) {
-    return new Promise((resolve, reject) => {
-      const opts = {
-        query: search,
-        pageStart: 1,
-        pageEnd: 2
-      };
-      ytSearch(opts, (err, r) => {
-        if (err) {
-          reject(err);
-        }
-        const videos = r.videos;
-        if (videos.length === 0) {
-          message.channel
-            .send(
-              "Reached maximum YouTube Quota, wait a few minutes and try again."
-            )
-            .then(message => message.delete(5000));
-        } else {
-          resolve([
-            {
-              title: videos[0].title,
-              url: `https://www.youtube.com${videos[0].url}`,
-              lengthSeconds: videos[0].seconds,
-              author: videos[0].author.name
-            },
-            {
-              title: videos[1].title,
-              url: `https://www.youtube.com${videos[1].url}`,
-              lengthSeconds: videos[1].seconds,
-              author: videos[1].author.name
-            },
-            {
-              title: videos[2].title,
-              url: `https://www.youtube.com${videos[2].url}`,
-              lengthSeconds: videos[2].seconds,
-              author: videos[2].author.name
-            }
-          ]);
-        }
-      });
-    });
-  }
+  static ytSearchWithChoice(search) {
+    return new Promise(async resolve => {
+      async function getYouTubeSongs(search) {
+        const params = new URLSearchParams();
+        params.append("identifier", `ytsearch:${search}`);
 
-  static async processTitles(array) {
-    return await Promise.all(
-      array.map((url, index) =>
-        YTDL.getBasicInfo(url).then(res => `${index + 1}: ${res.title}`)
-      )
-    );
-  }
-
-  static youTubeApiSearch(url) {
-    return new Promise((resolve, reject) => {
-      let videoId;
-      if (url.includes("watch?v=")) {
-        videoId = url.match(/(?<=v=)[\D\d]+/);
-      } else if (url.includes("youtu.be")) {
-        videoId = url.match(/(?<=be\/)[\D\d]+/);
+        return fetch(`http://localhost:2333/loadtracks?${params.toString()}`, {
+          headers: { Authorization: process.env.LAVALINK_PASSWORD }
+        })
+          .then(res => res.json())
+          .then(data => data.tracks)
+          .catch(err => {
+            console.error(err);
+            return null;
+          });
       }
-      request(
-        youtubeUrl + videoId[0] + process.env.YOUTUBE_API,
-        (error, response, body) => {
-          const result = JSON.parse(body);
-          if (!result.items) {
-            return;
-          } else {
-            const duration = result.items[0].contentDetails.duration;
-            const hours = duration.match(/\d+H/g);
-            const minutes = duration.match(/\d+M/g);
-            const seconds = duration.match(/\d+S/g);
-            let total = 0;
 
-            if (hours) {
-              total += parseInt(hours[0].split("H")[0]) * 3600;
-            }
-            if (minutes) {
-              total += parseInt(minutes[0].split("M")[0]) * 60;
-            }
-            if (seconds) {
-              total += parseInt(seconds[0].split("S")[0]);
-            }
+      const returnedVideos = await getYouTubeSongs(search);
+      const threeVideos = returnedVideos.slice(0, 3);
 
-            const returning = {
-              title: result.items[0].snippet.title,
-              lengthSeconds: total
-            };
-
-            resolve(returning);
-          }
-        }
-      );
+      resolve(threeVideos);
     });
   }
 
@@ -534,7 +369,7 @@ module.exports = class Helpers {
       sent
         .awaitReactions(filter, {
           max: 1,
-          time: 30000,
+          time: 10000,
           errors: ["time"]
         })
         .then(async collected => {
@@ -634,17 +469,19 @@ module.exports = class Helpers {
                   playlistId: playlist.id,
                   songId: array[selected - 1].id
                 }
-              }).then(() => {
-                message.channel.fetchMessage(sentId).then(message => {
-                  message.delete();
-                  messageApproval.delete();
-                });
-                message.channel
-                  .send(
-                    `\`${array[selected - 1].title}\` removed from Playlist!`
-                  )
-                  .then(message => message.delete(5000));
-                collector.stop();
+              }).then(destroyed => {
+                if (destroyed) {
+                  message.channel.fetchMessage(sentId).then(message => {
+                    message.delete();
+                    messageApproval.delete();
+                  });
+                  message.channel
+                    .send(
+                      `\`${array[selected - 1].title}\` removed from Playlist!`
+                    )
+                    .then(message => message.delete(5000));
+                  collector.stop();
+                }
               });
             }
           }
@@ -665,6 +502,88 @@ module.exports = class Helpers {
     });
   }
 
+  static lavalinkHelper(search, artist, trackName, duration, albumName) {
+    return new Promise(async resolve => {
+      async function getYouTubeSongs(search) {
+        const params = new URLSearchParams();
+        params.append("identifier", `ytsearch:${search}`);
+
+        return fetch(`http://localhost:2333/loadtracks?${params.toString()}`, {
+          headers: { Authorization: process.env.LAVALINK_PASSWORD }
+        })
+          .then(res => res.json())
+          .then(data => data.tracks)
+          .catch(err => {
+            console.error(err);
+            return null;
+          });
+      }
+
+      const returnedVideos = await getYouTubeSongs(search);
+      if ((artist, trackName, duration, albumName)) {
+        const filtered = returnedVideos.filter(video => {
+          const {
+            info: { title, length }
+          } = video;
+          const exp = XRegExp(`[\\p{L}\\p{Nd}]+`);
+          const videoTitle = XRegExp.match(title, exp, "all");
+          const searchTitle = XRegExp.match(trackName, exp, "all");
+          const lengthInSeconds = length / 1000;
+
+          return (
+            (searchTitle.some(word => videoTitle.includes(word)) &&
+              lengthInSeconds - duration <= 3 &&
+              lengthInSeconds - duration >= 0) ||
+            (searchTitle.some(word => videoTitle.includes(word)) &&
+              duration - lengthInSeconds <= 3 &&
+              duration - lengthInSeconds >= 0)
+          );
+        });
+
+        const officialVideo = filtered.filter(video => {
+          const {
+            info: { author }
+          } = video;
+          return author.toLowerCase().includes(artist.toLowerCase());
+        });
+
+        const videoForReturn =
+          officialVideo.length > 0
+            ? officialVideo[0]
+            : filtered.length > 0
+            ? filtered[0]
+            : returnedVideos[0];
+
+        resolve(videoForReturn);
+      }
+
+      resolve(returnedVideos[0]);
+    });
+  }
+
+  static lavalinkForURLOnly(VideoURL) {
+    return new Promise(async resolve => {
+      async function getYouTubeSongs(VideoURL) {
+        const params = new URLSearchParams();
+        params.append("identifier", VideoURL);
+
+        return fetch(`http://localhost:2333/loadtracks?${params.toString()}`, {
+          headers: { Authorization: process.env.LAVALINK_PASSWORD }
+        })
+          .then(res => res.json())
+          .then(data => data.tracks)
+          .catch(err => {
+            console.error(err);
+            return null;
+          });
+      }
+
+      const forReturn = await getYouTubeSongs(VideoURL);
+
+      resolve(forReturn);
+    });
+  }
+
   static convertSeconds(sec) {
     let hrs = Math.floor(sec / 3600);
     let min = Math.floor((sec - hrs * 3600) / 60);
@@ -681,6 +600,27 @@ module.exports = class Helpers {
         ? seconds + "s"
         : "0s");
     return result;
+  }
+
+  static joinIfNotPlaying(manager, server, message) {
+    const data = {
+      guild: message.guild.id,
+      channel: message.member.voiceChannelID,
+      host: "localhost"
+    };
+
+    const botPlayingMusic = manager.spawnPlayer(data).playing;
+
+    if (!botPlayingMusic) {
+      manager.leave(message.guild.id);
+      const player = manager.join(data);
+
+      this.retrieveQueue(server.id).then(queue => {
+        if (queue) {
+          this.play(player, message);
+        }
+      });
+    }
   }
 
   //This is here if someone clicks an emote before all 3 are reacted to the message.

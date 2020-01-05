@@ -23,6 +23,7 @@ module.exports = class PlaylistCommand extends commando.Command {
     const url = args.split(" ")[2];
     const server = await helper.retrieveServer(message.guild.id);
     const discordUser = message.author.id;
+    const manager = this.client.manager;
     let playlist;
 
     if (!plName && command !== "list") {
@@ -42,9 +43,11 @@ module.exports = class PlaylistCommand extends commando.Command {
                 `Playlist \`${plName.toLowerCase()}\` was created!`
               );
             } else if (!created) {
-              message.reply(
-                `There is already a playlist by the name of \`${plName.toLowerCase()}\`, pick a new name.`
-              );
+              message
+                .reply(
+                  `There is already a playlist by the name of \`${plName.toLowerCase()}\`, pick a new name.`
+                )
+                .then(message => message.delete(5000));
             }
           });
           break;
@@ -63,66 +66,56 @@ module.exports = class PlaylistCommand extends commando.Command {
                 //Spotify Playlist
                 if (url.includes("/playlist/")) {
                   const spotyPlaylist = [...(await helper.getSpotifyUrl(url))];
-                  if (spotyPlaylist[0] === "Quota") {
-                    message.channel
-                      .send(
-                        "Reached maximum YouTube Quota, wait a few minutes and try again."
-                      )
-                      .then(message => message.delete(5000));
-                  } else {
-                    spotyPlaylist.forEach(async url => {
-                      helper.songPlaylistJoin(url, playlist);
-                    });
-                    message.channel
-                      .send(`Added to \`${plName}\`.`)
-                      .then(message => message.delete(2000));
-                  }
+
+                  spotyPlaylist.forEach(song => {
+                    helper.songPlaylistJoin(song, playlist);
+                  });
+                  message.channel
+                    .send(
+                      `Added \`${spotyPlaylist.length}\` songs to \`${plName}\`.`
+                    )
+                    .then(message => message.delete(2000));
                 }
+
                 //Spotify Album
                 else if (url.includes("/album/")) {
                   const spotyAlbum = [...(await helper.getSpotifyUrl(url))];
-                  if (spotyAlbum[0] === "Quota") {
-                    message.channel
-                      .send(
-                        "Reached maximum YouTube Quota, wait a few minutes and try again."
-                      )
-                      .then(message => message.delete(5000));
-                  } else {
-                    for (let i = 0; i < spotyAlbum.length; i++) {
-                      helper.songPlaylistJoin(spotyAlbum[i], playlist);
-                    }
-                    message.channel
-                      .send(`Added to \`${plName}\`.`)
-                      .then(message => message.delete(2000));
-                  }
+
+                  spotyAlbum.forEach(song => {
+                    helper.songPlaylistJoin(song, playlist);
+                  });
+                  message.channel
+                    .send(
+                      `Added \`${spotyAlbum.length}\` songs to \`${plName}\`.`
+                    )
+                    .then(message => message.delete(2000));
                 }
+
                 //Regular Spotify Link
                 else {
-                  const url = await helper.getSpotifyUrl(args);
-                  if (url === "Quota") {
-                    message.channel
-                      .send(
-                        "Reached maximum YouTube Quota, wait a few minutes and try again."
-                      )
-                      .then(message => message.delete(5000));
-                  } else {
-                    helper.songPlaylistJoin(url, playlist);
-                    message.channel
-                      .send(`Added to \`${plName}\`.`)
-                      .then(message => message.delete(2000));
-                  }
+                  const song = await helper.getSpotifyUrl(args);
+
+                  helper.songPlaylistJoin(song, playlist);
+                  message.channel
+                    .send(`Added \`${song.info.title}\` to \`${plName}\`.`)
+                    .then(message => message.delete(2000));
                 }
               }
+
               //YouTube Playlist
               else if (url.includes("youtube.com/playlist")) {
-                const ytPlaylistUrls = await helper.youtubePlaylist(url);
-                ytPlaylistUrls.forEach(url => {
-                  helper.songPlaylistJoin(url, playlist);
+                const ytPlaylistUrls = await helper.lavalinkForURLOnly(url);
+
+                ytPlaylistUrls.forEach(song => {
+                  helper.songPlaylistJoin(song, playlist);
                 });
                 message.channel
-                  .send(`Added to \`${plName}\`.`)
+                  .send(
+                    `Added \`${ytPlaylistUrls.length}\` songs to \`${plName}\`.`
+                  )
                   .then(message => message.delete(2000));
               }
+
               //Currently playing song
               else if (url === "nowplaying") {
                 const queue = await helper.retrieveQueue(server.id);
@@ -138,9 +131,12 @@ module.exports = class PlaylistCommand extends commando.Command {
                   }
                 });
                 message.channel
-                  .send(`Added to \`${plName}\`.`)
+                  .send(
+                    `Added \`${queue.songs[0].get().title}\` to \`${plName}\`.`
+                  )
                   .then(message => message.delete(2000));
               }
+
               //Regular YouTube Link
               else if (args.includes("youtube") || args.includes("youtu.be")) {
                 //Playlist Checker
@@ -151,9 +147,20 @@ module.exports = class PlaylistCommand extends commando.Command {
                       user.id === message.author.id
                     );
                   };
-                  const sent = await message.channel.send(
-                    "This URL includes a Playlist - Do you want to:\n1. Add just the song.\n2.Add the entire playlist."
-                  );
+
+                  const embed = new Discord.RichEmbed()
+                    .setTitle("YouTube Playlist Link Detected")
+                    .setColor("#FF0000")
+                    .addField(
+                      "1.  Add just the song.",
+                      "---------------------------"
+                    )
+                    .addField(
+                      "2.  Add the playlist.",
+                      "---------------------------"
+                    );
+
+                  const sent = await message.channel.send(embed);
 
                   sent.react("1⃣").then(() => sent.react("2⃣"));
                   sent
@@ -166,32 +173,39 @@ module.exports = class PlaylistCommand extends commando.Command {
                     .then(async collected => {
                       const reaction = collected.first();
                       if (reaction.emoji.name === "1⃣") {
-                        helper.songPlaylistJoin(url.split("list")[0], playlist);
+                        const [song] = await helper.lavalinkForURLOnly(
+                          url.split("list")[0]
+                        );
+                        helper.songPlaylistJoin(song, playlist);
+                        sent.delete();
                         message.channel
-                          .send(`Song added to playlist: ${plName}`)
+                          .send(`Added \`${song.info.title}\` to ${plName}.`)
                           .then(message => {
                             message.delete(2000);
-                            sent.delete(1900);
+
                           });
                       } else if (reaction.emoji.name === "2⃣") {
-                        const ytPlaylistUrls = await helper.youtubePlaylist(
+                        const ytPlaylistUrls = await helper.lavalinkForURLOnly(
                           url
                         );
-                        ytPlaylistUrls.forEach(url => {
-                          helper.songPlaylistJoin(url, playlist);
+                        ytPlaylistUrls.forEach(song => {
+                          helper.songPlaylistJoin(song, playlist);
                         });
+                        sent.delete();
                         message.channel
-                          .send(`Added all videos to \`${plName}\`.`)
+                          .send(
+                            `Added \`${ytPlaylistUrls.length}\` videos to \`${plName}\`.`
+                          )
                           .then(message => {
                             message.delete(2000);
-                            sent.delete(2000);
                           });
                       }
                     });
                 } else {
-                  helper.songPlaylistJoin(url, playlist);
+                  const [song] = await helper.lavalinkForURLOnly(url);
+                  helper.songPlaylistJoin(song, playlist);
                   message.channel
-                    .send(`Added to \`${plName}\`.`)
+                    .send(`Added \`${song.info.title}\` to \`${plName}\`.`)
                     .then(message => message.delete(2000));
                 }
               }
@@ -287,8 +301,8 @@ module.exports = class PlaylistCommand extends commando.Command {
           );
           if (playlist) {
             if (message.member.voiceChannel) {
-              playlist.get().songs.forEach(async song => {
-                const queue = await helper.retrieveQueue(server.id);
+              const queue = await helper.retrieveQueue(server.id);
+              playlist.get().songs.forEach(song => {
                 models.SongQueue.findOne({
                   where: { songId: song.get().id, queueId: queue.id }
                 }).then(joined => {
@@ -300,25 +314,8 @@ module.exports = class PlaylistCommand extends commando.Command {
                   }
                 });
               });
-              if (!message.guild.voiceConnection) {
-                if (!servers[message.guild.id]) {
-                  servers[message.guild.id] = {};
-                }
-                helper.retrieveQueue(server.id).then(queue => {
-                  if (queue) {
-                    message.member.voiceChannel
-                      .join()
-                      .then(connection => {
-                        helper.play(connection, message);
-                      })
-                      .catch(ex => {
-                        message.channel
-                          .send("I don't have permission to join this channel.")
-                          .then(message => message.delete(3000));
-                      });
-                  }
-                });
-              }
+
+              helper.joinIfNotPlaying(manager, server, message);
             } else {
               message.reply("You need to be in a voice channel.");
             }
@@ -340,9 +337,7 @@ module.exports = class PlaylistCommand extends commando.Command {
             };
 
             const confirm = await message.channel.send(
-              `<@${
-                message.author.id
-              }> Are you sure you want to delete \`${plName}\`?`
+              `<@${message.author.id}> Are you sure you want to delete \`${plName}\`?`
             );
 
             confirm.react("👍").then(() => {

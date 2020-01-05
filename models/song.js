@@ -5,7 +5,8 @@ module.exports = (sequelize, DataTypes) => {
     {
       title: DataTypes.STRING,
       url: DataTypes.STRING,
-      lengthSeconds: DataTypes.INTEGER
+      lengthSeconds: DataTypes.INTEGER,
+      track: DataTypes.TEXT
     },
     {}
   );

@@ -27,28 +27,27 @@ module.exports = class PlayCommand extends commando.Command {
         !args.includes("youtu.be") &&
         !args.includes("spotify")
       ) {
-        const url = await helper.searchYoutube(args, message);
-        if (url === "Quota") {
-          message.channel
-            .send(
-              "Reached maximum YouTube Quota, wait a few minutes and try again."
-            )
-            .then(message => message.delete(5000));
-        } else {
-          helper.songQueueJoin(url, queue);
-          message.channel
-            .send("Added to queue!")
-            .then(message => message.delete(2000));
-        }
+        const video = await helper.lavalinkHelper(args, message);
+
+        const {
+          info: { title }
+        } = video;
+
+        helper.songQueueJoin(video, queue);
+        message.channel
+          .send(`Added \`${title}\` to Queue!`)
+          .then(message => message.delete(2000));
       }
       //YouTube Playlist
       else if (args.includes("youtube.com/playlist")) {
-        const playlist = await helper.youtubePlaylist(args);
-        playlist.forEach(async url => {
-          helper.songQueueJoin(url, queue);
+        const playlist = await helper.lavalinkForURLOnly(args);
+
+        playlist.forEach(video => {
+          helper.songQueueJoin(video, queue);
         });
+
         message.channel
-          .send("Added to queue!")
+          .send(`Added \`${playlist.length}\` Videos to queue!`)
           .then(message => message.delete(2000));
       }
       //Spotify Playlist or Album Link
@@ -57,35 +56,21 @@ module.exports = class PlayCommand extends commando.Command {
           const spotyPlaylist = [
             ...(await helper.getSpotifyUrl(args, message))
           ];
-          if (spotyPlaylist[0] === "Quota") {
-            message.channel
-              .send(
-                "Reached maximum YouTube Quota, wait a few minutes and try again."
-              )
-              .then(message => message.delete(5000));
-          } else {
-            spotyPlaylist.forEach(async url => {
-              helper.songQueueJoin(url, queue);
-            });
-            message.channel
-              .send("Added to queue!")
-              .then(message => message.delete(2000));
-          }
+
+          spotyPlaylist.forEach(song => {
+            helper.songQueueJoin(song, queue);
+          });
+          message.channel
+            .send(`Added \`${spotyPlaylist.length}\` songs to queue!`)
+            .then(message => message.delete(2000));
         } else {
           //Single Song Spotify Search
-          const url = await helper.getSpotifyUrl(args, message);
-          if (url === "Quota") {
-            message.channel
-              .send(
-                "Reached maximum YouTube Quota, wait a few minutes and try again."
-              )
-              .then(message => message.delete(5000));
-          } else {
-            helper.songQueueJoin(url, queue);
-            message.channel
-              .send("Added to queue!")
-              .then(message => message.delete(2000));
-          }
+          const song = await helper.getSpotifyUrl(args, message);
+
+          helper.songQueueJoin(song, queue);
+          message.channel
+            .send(`Added \`${song.info.title}\` to queue!`)
+            .then(message => message.delete(2000));
         }
       }
       //Normal YouTube Link
@@ -117,54 +102,68 @@ module.exports = class PlayCommand extends commando.Command {
             .then(async collected => {
               const reaction = collected.first();
               if (reaction.emoji.name === "1⃣") {
-                helper.songQueueJoin(args.split("list")[0], queue);
+                const [song] = await helper.lavalinkForURLOnly(
+                  args.split("list")[0]
+                );
+                helper.songQueueJoin(song, queue);
                 waitingForReaction = false;
-                message.channel.send(`Added to queue.`).then(message => {
-                  message.delete(2000);
-                  sent.delete(1900);
-                });
+                message.channel
+                  .send(`Added \`${song.info.title}\` to queue.`)
+                  .then(message => {
+                    message.delete(2000);
+                    sent.delete(1900);
+                  });
               } else if (reaction.emoji.name === "2⃣") {
-                helper.songQueueJoin(args.split("list")[0], queue);
-                const ytPlaylistUrls = await helper.youtubePlaylist(args);
-                ytPlaylistUrls.forEach(url => {
-                  helper.songQueueJoin(url, queue);
+                const [song] = await helper.lavalinkForURLOnly(
+                  args.split("list")[0]
+                );
+                helper.songQueueJoin(song, queue);
+                const ytPlaylistUrls = await helper.lavalinkForURLOnly(args);
+                ytPlaylistUrls.forEach(song => {
+                  helper.songQueueJoin(song, queue);
                 });
                 waitingForReaction = false;
-                message.channel.send(`Added all to queue.`).then(message => {
-                  message.delete(2000);
-                  sent.delete(2000);
-                });
+                message.channel
+                  .send(`Added \`${ytPlaylistUrls.length}\` songs to queue.`)
+                  .then(message => {
+                    message.delete(2000);
+                    sent.delete(2000);
+                  });
               }
             })
-            .catch(err => sent.delete());
+            .catch(() => sent.delete());
         } else {
-          helper.songQueueJoin(args, queue);
+          const [song] = await helper.lavalinkForURLOnly(args);
+          helper.songQueueJoin(song, queue);
           message.channel
-            .send("Added to queue!")
+            .send(`Added \`${song.info.title}\` to queue.`)
             .then(message => message.delete(2000));
         }
       }
-      if (!message.guild.voiceConnection) {
+
         const awaitReaction = setInterval(() => {
           if (!waitingForReaction) {
             clearInterval(awaitReaction);
             helper.retrieveQueue(dbserver.id).then(queue => {
-              if (queue.songs.length > 0) {
-                message.member.voiceChannel
-                  .join()
-                  .then(connection => {
-                    helper.play(connection, message);
-                  })
-                  .catch(ex => {
-                    message.channel
-                      .send("I don't have permission to join this channel.")
-                      .then(message => message.delete(3000));
-                  });
+              const manager = this.client.manager;
+              const data = {
+                guild: message.guild.id,
+                channel: message.member.voiceChannelID,
+                host: "localhost"
+              };
+
+              const botPlayingMusic = manager.spawnPlayer(data).playing;
+
+              if (queue.songs.length > 0 && !botPlayingMusic) {
+                manager.leave(message.guild.id);
+                const player = manager.join(data);
+
+                helper.play(player, message, manager);
               }
             });
           }
         }, 1000);
-      }
+      
     } else {
       message.reply("You need to be in a voice channel.");
     }

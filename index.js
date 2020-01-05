@@ -2,6 +2,7 @@ const path = require("path");
 const Commando = require("discord.js-commando");
 const sqlite = require("sqlite");
 const Sequelize = require("sequelize");
+const { PlayerManager } = require("discord.js-lavalink");
 require("dotenv").config();
 
 global.servers = {};
@@ -11,6 +12,14 @@ global.sequelize = new Sequelize({
   storage: "database.sqlite"
 });
 
+const lavalinkNodes = [
+  {
+    host: "localhost",
+    port: 2333,
+    password: process.env.LAVALINK_PASSWORD
+  }
+];
+
 const client = new Commando.Client({
   commandPrefix: "?",
   owner: "92706551487291392",
@@ -18,18 +27,22 @@ const client = new Commando.Client({
   unknownCommandResponse: false
 });
 
-client.once("ready", () => {
-  console.log(`Logged in as ${client.user.tag}(${client.user.id})`);
+client.on("ready", () => {
+  client.manager = new PlayerManager(client, lavalinkNodes, {
+    user: client.user.id,
+    shards: 1
+  });
 });
+
 client.registry
-    .registerDefaultTypes()
-    .registerGroups([
-        ['music', 'Music commands'],
-        ['misc', 'Miscellaneous commands']
-    ])
-    .registerDefaultGroups()
-    .registerDefaultCommands()
-    .registerCommandsIn(path.join(__dirname, 'commands'));
+  .registerDefaultTypes()
+  .registerGroups([
+    ["music", "Music commands"],
+    ["misc", "Miscellaneous commands"]
+  ])
+  .registerDefaultGroups()
+  .registerDefaultCommands()
+  .registerCommandsIn(path.join(__dirname, "commands"));
 
 client
   .setProvider(
@@ -39,4 +52,9 @@ client
   )
   .catch(console.error);
 
-client.login(process.env.DISCORD_BOT_TOKEN);
+client.login(process.env.DISCORD_BOT_TOKEN).then(() => {
+  console.log(`Logged in as ${client.user.tag}(${client.user.id})`);
+  client.manager && console.log("Connected to Lavalink.");
+});
+
+

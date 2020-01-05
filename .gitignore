@@ -95,3 +95,5 @@ database.sqlite
 
 #vscode
 .vscode/
+Lavalink.jar
+application.yml

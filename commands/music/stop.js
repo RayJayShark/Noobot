@@ -8,21 +8,20 @@ module.exports = class StopCommand extends commando.Command {
       name: "stop",
       group: "music",
       memberName: "stop",
-      description: "Stops the bot, clears the queue, and leaves the voice channel."
+      description:
+        "Stops the bot, clears the queue, and leaves the voice channel."
     });
   }
 
   async run(message) {
     if (message.member.voiceChannel) {
-      if (!message.guild.voiceConnection) {
-        return null;
-      } else if (message.guild.voiceConnection) {
-        const dbserver = await helper.retrieveServer(message.guild.id);
-        const queue = await helper.retrieveQueue(dbserver.id);
-        models.SongQueue.destroy({ where: { queueId: queue.id } }).then(() => {
-          message.guild.voiceConnection.disconnect();
-        });
-      }
+      
+
+      const dbserver = await helper.retrieveServer(message.guild.id);
+      const queue = await helper.retrieveQueue(dbserver.id);
+      models.SongQueue.destroy({ where: { queueId: queue.id } }).then(() => {
+        this.client.manager.leave(message.guild.id);
+      });
     } else {
       message.reply("You need to be in a voice channel to stop the song.");
     }

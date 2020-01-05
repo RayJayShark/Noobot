@@ -17,6 +17,9 @@ module.exports = {
       lengthSeconds: {
         type: Sequelize.INTEGER
       },
+      track: {
+        type: Sequelize.TEXT
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

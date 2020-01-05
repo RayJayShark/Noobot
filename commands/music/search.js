@@ -15,9 +15,11 @@ module.exports = class SearchCommand extends commando.Command {
 
   async run(message, args) {
     if (message.member.voiceChannel) {
-      const threeResults = await helper.ytSearchWithChoice(args, message);
+      const threeResults = await helper.ytSearchWithChoice(args);
       const server = await helper.retrieveServer(message.guild.id);
       const queue = await helper.retrieveQueue(server.id);
+      const manager = this.client.manager;
+
       const filter = (reaction, user) => {
         return (
           ["1⃣", "2⃣", "3⃣"].includes(reaction.emoji.name) &&
@@ -27,22 +29,22 @@ module.exports = class SearchCommand extends commando.Command {
       const embed = new Discord.RichEmbed()
         .setTitle("Select a result:")
         .addField(
-          `1.  ${threeResults[0].title}`,
-          `${threeResults[0].author} - ${helper.convertSeconds(
-            threeResults[0].lengthSeconds
-          )} - [Link](${threeResults[0].url})`
+          `1.  ${threeResults[0].info.title}`,
+          `${threeResults[0].info.author} - ${helper.convertSeconds(
+            threeResults[0].info.length / 1000
+          )} - [Link](${threeResults[0].info.uri})`
         )
         .addField(
-          `2.  ${threeResults[1].title}`,
-          `${threeResults[1].author} - ${helper.convertSeconds(
-            threeResults[1].lengthSeconds
-          )} - [Link](${threeResults[1].url})`
+          `2.  ${threeResults[1].info.title}`,
+          `${threeResults[1].info.author} - ${helper.convertSeconds(
+            threeResults[1].info.length / 1000
+          )} - [Link](${threeResults[1].info.uri})`
         )
         .addField(
-          `3.  ${threeResults[2].title}`,
-          `${threeResults[2].author} - ${helper.convertSeconds(
-            threeResults[2].lengthSeconds
-          )} - [Link](${threeResults[2].url})`
+          `3.  ${threeResults[2].info.title}`,
+          `${threeResults[2].info.author} - ${helper.convertSeconds(
+            threeResults[2].info.length / 1000
+          )} - [Link](${threeResults[2].info.uri})`
         );
 
       const sent = await message.channel.send(embed);
@@ -62,7 +64,7 @@ module.exports = class SearchCommand extends commando.Command {
       sent
         .awaitReactions(filter, {
           max: 1,
-          time: 7000,
+          time: 10000,
           errors: ["time"]
         })
         .then(collected => {
@@ -78,31 +80,14 @@ module.exports = class SearchCommand extends commando.Command {
             arrIndex = 2;
             sent.delete(100);
           }
-          if (!message.guild.voiceConnection) {
-            if (!servers[message.guild.id]) {
-              servers[message.guild.id] = {};
-            }
-            helper.retrieveQueue(server.id).then(queue => {
-              if (queue) {
-                message.member.voiceChannel
-                  .join()
-                  .then(connection => {
-                    helper.play(connection, message);
-                  })
-                  .catch(ex => {
-                    message.channel
-                      .send("I don't have permission to join this channel.")
-                      .then(message => message.delete(3000));
-                  });
-              }
-            });
-          }
-          helper.songQueueJoin(threeResults[arrIndex].url, queue);
+
+          helper.joinIfNotPlaying(manager, server, message);
+          helper.songQueueJoin(threeResults[arrIndex], queue);
           message.channel
-            .send("Added to queue!")
+            .send(`Added \`${threeResults[arrIndex].info.title}\` queue!`)
             .then(message => message.delete(2000));
         })
-        .catch(err => {
+        .catch(() => {
           sent.delete();
         });
     } else {

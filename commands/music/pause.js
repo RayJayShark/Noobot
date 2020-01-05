@@ -11,13 +11,22 @@ module.exports = class PauseComand extends commando.Command {
   }
 
   run(message) {
-    const server = servers[message.guild.id];
-    if (!server.dispatcher.paused) {
-      server.dispatcher.pause();
-    } else {
+    const manager = this.client.manager;
+    const data = {
+      guild: message.guild.id,
+      channel: message.member.voiceChannelID,
+      host: "localhost"
+    };
+
+    const player = manager.spawnPlayer(data);
+    if (player.playing && !player.paused) {
+      player.pause();
       message.channel
-        .send("I'm already paused.")
-        .then(message => message.delete(3000));
+        .send("Successfully Paused! \nType `?resume` to resume.")
+        .then(message => message.delete(5000));
+    } else if (!player.playing) {
+      manager.leave(message.guild.id);
+      
     }
   }
 };
