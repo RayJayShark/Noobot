@@ -15,6 +15,7 @@ module.exports = class GetYtCommand extends commando.Command {
   async run(message, args) {
     if (args.includes("open.spotify.com/track/")) {
       const song = await helper.getSpotifyUrl(args);
+      console.log(song);
       message.channel.send(song.info.uri);
     } else {
       message.channel
