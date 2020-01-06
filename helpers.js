@@ -609,15 +609,15 @@ module.exports = class Helpers {
       host: "localhost"
     };
 
-    const botPlayingMusic = manager.spawnPlayer(data).playing;
+    const botPlayingMusic = manager.spawnPlayer(data);
 
-    if (!botPlayingMusic) {
+    if (!botPlayingMusic.playing && !botPlayingMusic.paused) {
       manager.leave(message.guild.id);
       const player = manager.join(data);
 
       this.retrieveQueue(server.id).then(queue => {
         if (queue) {
-          this.play(player, message);
+          this.play(player, message, manager);
         }
       });
     }

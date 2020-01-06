@@ -19,7 +19,7 @@ module.exports = class SkipCommand extends commando.Command {
     };
 
     const player = manager.spawnPlayer(data);
-    if (!player.playing) {
+    if (!player.playing && !player.paused) {
       manager.leave(message.guild.id);
     } else {
       player.stop();

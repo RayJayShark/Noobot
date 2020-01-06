@@ -141,29 +141,28 @@ module.exports = class PlayCommand extends commando.Command {
         }
       }
 
-        const awaitReaction = setInterval(() => {
-          if (!waitingForReaction) {
-            clearInterval(awaitReaction);
-            helper.retrieveQueue(dbserver.id).then(queue => {
-              const manager = this.client.manager;
-              const data = {
-                guild: message.guild.id,
-                channel: message.member.voiceChannelID,
-                host: "localhost"
-              };
+      const awaitReaction = setInterval(() => {
+        if (!waitingForReaction) {
+          clearInterval(awaitReaction);
+          helper.retrieveQueue(dbserver.id).then(queue => {
+            const manager = this.client.manager;
+            const data = {
+              guild: message.guild.id,
+              channel: message.member.voiceChannelID,
+              host: "localhost"
+            };
 
-              const botPlayingMusic = manager.spawnPlayer(data).playing;
+            const botPlayingMusic = manager.spawnPlayer(data);
 
-              if (queue.songs.length > 0 && !botPlayingMusic) {
-                manager.leave(message.guild.id);
-                const player = manager.join(data);
+            if (queue.songs.length > 0 && !botPlayingMusic.playing && !botPlayingMusic.paused) {
+              manager.leave(message.guild.id);
+              const player = manager.join(data);
 
-                helper.play(player, message, manager);
-              }
-            });
-          }
-        }, 1000);
-      
+              helper.play(player, message, manager);
+            }
+          });
+        }
+      }, 1000);
     } else {
       message.reply("You need to be in a voice channel.");
     }

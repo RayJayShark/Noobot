@@ -21,7 +21,7 @@ module.exports = class VolumeCommand extends commando.Command {
 
     const player = manager.spawnPlayer(data);
 
-    if (!player.playing) {
+    if (!player.playing && !player.paused) {
       manager.leave(message.guild.id);
     }
 
@@ -43,7 +43,7 @@ module.exports = class VolumeCommand extends commando.Command {
               .then(message => {
                 message.delete(2000);
               });
-            player.volume(volume)
+            player.volume(volume);
           }
         } else {
           message.channel

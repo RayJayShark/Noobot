@@ -25,7 +25,7 @@ module.exports = class NowPlayingCommand extends commando.Command {
 
     const player = manager.spawnPlayer(data);
 
-    if (!player.playing) {
+    if (!player.playing && !player.paused) {
       manager.leave(message.guild.id);
       message.channel
         .send("There is nothing currently playing.")
