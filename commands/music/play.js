@@ -154,7 +154,11 @@ module.exports = class PlayCommand extends commando.Command {
 
             const botPlayingMusic = manager.spawnPlayer(data);
 
-            if (queue.songs.length > 0 && !botPlayingMusic.playing && !botPlayingMusic.paused) {
+            if (
+              queue.songs.length > 0 &&
+              !botPlayingMusic.playing &&
+              !botPlayingMusic.paused
+            ) {
               manager.leave(message.guild.id);
               const player = manager.join(data);
 

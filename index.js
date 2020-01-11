@@ -56,5 +56,3 @@ client.login(process.env.DISCORD_BOT_TOKEN).then(() => {
   console.log(`Logged in as ${client.user.tag}(${client.user.id})`);
   client.manager && console.log("Connected to Lavalink.");
 });
-
-

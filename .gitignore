@@ -97,3 +97,4 @@ database.sqlite
 .vscode/
 Lavalink.jar
 application.yml
+.idea

@@ -182,7 +182,6 @@ module.exports = class PlaylistCommand extends commando.Command {
                           .send(`Added \`${song.info.title}\` to ${plName}.`)
                           .then(message => {
                             message.delete(2000);
-
                           });
                       } else if (reaction.emoji.name === "2⃣") {
                         const ytPlaylistUrls = await helper.lavalinkForURLOnly(

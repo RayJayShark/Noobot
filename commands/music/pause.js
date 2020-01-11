@@ -26,7 +26,6 @@ module.exports = class PauseComand extends commando.Command {
         .then(message => message.delete(5000));
     } else if (!player.playing) {
       manager.leave(message.guild.id);
-      
     }
   }
 };
