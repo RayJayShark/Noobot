@@ -1,7 +1,6 @@
 const commando = require("discord.js-commando");
-const Discord = require("discord.js");
-const helper = require("../../helpers");
 const models = require("../../models");
+const helper = require("../../helpers");
 
 module.exports = class QueueCommand extends commando.Command {
   constructor(client) {
@@ -23,6 +22,21 @@ module.exports = class QueueCommand extends commando.Command {
       switch (command) {
         case "edit":
           helper.createPagination(queue.songs, message, false, true);
+          break;
+
+        case "clear":
+          const queueLengthBeforeClear = queue.songs.length;
+          queue.songs.forEach(song =>
+            models.SongQueue.destroy({
+              where: { queueId: queue.id, songId: song.id }
+            })
+          );
+          message.channel.send(
+            `Successfully removed ${queueLengthBeforeClear} songs from Queue.`
+          ).then(message => message.delete(5000))
+          break;
+
+        default:
           break;
       }
     } else {
