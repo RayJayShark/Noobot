@@ -22,7 +22,7 @@ module.exports = class PauseComand extends commando.Command {
     if (player.playing && !player.paused) {
       player.pause();
       message.channel
-        .send("Successfully Paused! \nType `?resume` to resume.")
+        .send("Successfully paused! \nType `?resume` to resume.")
         .then(message => message.delete(5000));
     } else if (!player.playing) {
       manager.leave(message.guild.id);
