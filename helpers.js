@@ -441,20 +441,21 @@ module.exports = class Helpers {
       );
       collector.on("collect", async message => {
         const selected = parseInt(message.content);
-        if (selected !== NaN) {
+        if (!isNaN(selected)) {
           if (array[selected - 1]) {
             let server = await Helpers.retrieveServer(message.guild.id);
+            const selectedSong = array[selected - 1];
             if (!playlist) {
               let queue = await Helpers.retrieveQueue(server.id);
               models.SongQueue.destroy({
-                where: { queueId: queue.id, songId: array[selected - 1].id }
+                where: { queueId: queue.id, songId: selectedSong.id }
               }).then(() => {
                 message.channel.fetchMessage(sentId).then(message => {
                   message.delete();
                   messageApproval.delete();
                 });
                 message.channel
-                  .send(`\`${array[selected - 1].title}\` removed from Queue!`)
+                  .send(`\`${selectedSong.title}\` removed from Queue!`)
                   .then(message => message.delete(5000));
                 collector.stop();
               });
@@ -467,7 +468,7 @@ module.exports = class Helpers {
               models.SongPlaylist.destroy({
                 where: {
                   playlistId: playlist.id,
-                  songId: array[selected - 1].id
+                  songId: selectedSong.id
                 }
               }).then(destroyed => {
                 if (destroyed) {
@@ -476,14 +477,16 @@ module.exports = class Helpers {
                     messageApproval.delete();
                   });
                   message.channel
-                    .send(
-                      `\`${array[selected - 1].title}\` removed from Playlist!`
-                    )
+                    .send(`\`${selectedSong.title}\` removed from Playlist!`)
                     .then(message => message.delete(5000));
                   collector.stop();
                 }
               });
             }
+          } else {
+            message.channel
+              .send("No song from your selected number, try again.")
+              .then(message => message.delete(5000));
           }
         }
       });
