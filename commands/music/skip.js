@@ -11,18 +11,30 @@ module.exports = class SkipCommand extends commando.Command {
   }
 
   run(message) {
-    const manager = this.client.manager;
-    const data = {
-      guild: message.guild.id,
-      channel: message.member.voiceChannelID,
-      host: "localhost"
-    };
+    if (message.member.voiceChannel) {
+      if (message.member.voiceChannelID === player.channel) {
+        const manager = this.client.manager;
+        const data = {
+          guild: message.guild.id,
+          channel: message.member.voiceChannelID,
+          host: "localhost"
+        };
 
-    const player = manager.spawnPlayer(data);
-    if (!player.playing && !player.paused) {
-      manager.leave(message.guild.id);
+        const player = manager.spawnPlayer(data);
+        if (!player.playing && !player.paused) {
+          manager.leave(message.guild.id);
+        } else {
+          player.stop();
+        }
+      } else {
+        message.channel
+          .send("You need to be in the same voice channel to skip the song.")
+          .then(message => message.delete(5000));
+      }
     } else {
-      player.stop();
+      message.channel
+        .send("You need to be in a voice channel to skip the song.")
+        .then(message => message.delete(5000));
     }
   }
 };

@@ -49,7 +49,9 @@ module.exports = class QueueCommand extends commando.Command {
         helper.createPagination(queue.songs, message);
       }
     } else {
-      message.channel.send("No songs in queue.").then(message => message.delete(5000));
+      message.channel
+        .send("No songs in queue.")
+        .then(message => message.delete(5000));
     }
   }
 };
