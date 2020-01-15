@@ -12,15 +12,14 @@ module.exports = class SkipCommand extends commando.Command {
 
   run(message) {
     if (message.member.voiceChannel) {
+      const manager = this.client.manager;
+      const data = {
+        guild: message.guild.id,
+        channel: message.member.voiceChannelID,
+        host: "localhost"
+      };
       const player = manager.spawnPlayer(data);
       if (message.member.voiceChannelID === player.channel) {
-        const manager = this.client.manager;
-        const data = {
-          guild: message.guild.id,
-          channel: message.member.voiceChannelID,
-          host: "localhost"
-        };
-
         if (!player.playing && !player.paused) {
           manager.leave(message.guild.id);
         } else {
