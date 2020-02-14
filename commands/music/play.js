@@ -32,14 +32,16 @@ module.exports = class PlayCommand extends commando.Command {
       ) {
         const video = await helper.lavalinkHelper(args, message);
 
-        const {
-          info: { title }
-        } = video;
+        if (video) {
+          const {
+            info: { title }
+          } = video;
 
-        helper.songQueueJoin(video, queue);
-        message.channel
-          .send(`Added \`${title}\` to Queue!`)
-          .then(message => message.delete(2000));
+          helper.songQueueJoin(video, queue);
+          message.channel
+            .send(`Added \`${title}\` to Queue!`)
+            .then(message => message.delete(2000));
+        }
       }
       //YouTube Playlist
       else if (args.includes("youtube.com/playlist")) {
