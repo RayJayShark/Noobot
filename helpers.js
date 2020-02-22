@@ -321,7 +321,7 @@ module.exports = class Helpers {
           if (arr[i]) {
             pageinateEmbed.addField(
               `${arrStart + i + 1}. ${arr[i].get().title}`,
-              `${Helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
+              `${helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
                 arr[i].get().url
               })`
             );
@@ -336,7 +336,7 @@ module.exports = class Helpers {
         pageinateEmbed
           .setFooter(`Page ${currentPage} of ${pageTotal}`)
           .setAuthor(
-            `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
+            `Total Songs:  ${array.length}   -   ${helpers.convertSeconds(
               totalLength
             )}`
           );
@@ -362,9 +362,9 @@ module.exports = class Helpers {
 
       sent
         .react("⬅")
-        .catch(err => Helpers.earlyEmoteReact())
-        .then(() => sent.react("❌").catch(err => Helpers.earlyEmoteReact()))
-        .then(() => sent.react("➡").catch(err => Helpers.earlyEmoteReact()));
+        .catch(err => helpers.earlyEmoteReact())
+        .then(() => sent.react("❌").catch(err => helpers.earlyEmoteReact()))
+        .then(() => sent.react("➡").catch(err => helpers.earlyEmoteReact()));
 
       sent
         .awaitReactions(filter, {
@@ -404,7 +404,7 @@ module.exports = class Helpers {
           sent
             .edit(embed)
             .catch(err => {
-              Helpers.earlyEmoteReact();
+              helpers.earlyEmoteReact();
             })
             .then(() =>
               waitReaction(
@@ -417,7 +417,7 @@ module.exports = class Helpers {
             );
         })
         .catch(err => {
-          sent.delete().catch(err => Helpers.earlyEmoteReact());
+          sent.delete().catch(err => helpers.earlyEmoteReact());
         });
     }
 
@@ -443,10 +443,10 @@ module.exports = class Helpers {
         const selected = parseInt(message.content);
         if (!isNaN(selected)) {
           if (array[selected - 1]) {
-            let server = await Helpers.retrieveServer(message.guild.id);
+            let server = await helpers.retrieveServer(message.guild.id);
             const selectedSong = array[selected - 1];
             if (!playlist) {
-              let queue = await Helpers.retrieveQueue(server.id);
+              let queue = await helpers.retrieveQueue(server.id);
               models.SongQueue.destroy({
                 where: { queueId: queue.id, songId: selectedSong.id }
               }).then(() => {
@@ -461,7 +461,7 @@ module.exports = class Helpers {
               });
             } else {
               const plName = originalMessage.content.split(" ")[2];
-              const playlist = await Helpers.retrievePlaylist(
+              const playlist = await helpers.retrievePlaylist(
                 plName,
                 server.id
               );
@@ -624,6 +624,52 @@ module.exports = class Helpers {
         }
       });
     }
+  }
+
+  static async fetchForGamePrices(plainTitle) {
+    const urlForFetch = `https://api.isthereanydeal.com/v01/game/prices/?key=${process.env.ANYDEAL_API}&plains=${plainTitle}`;
+    const returnedPrices = await fetch(urlForFetch)
+      .then(resp => resp.json())
+      .then(({ data }) => data[`${plainTitle}`]["list"]);
+
+    const objectForReturn = returnedPrices
+      .slice(0, 5)
+      .map(({ price_new, url, shop: { name } }) => ({
+        current_price: price_new,
+        url,
+        store: name
+      }));
+
+    return objectForReturn;
+  }
+
+  static async fetchForGameTitle(gameTitle) {
+    const bundleDLCPackFilter = ["DLC", "Bundle", "Pack"];
+    const urlForFetch = `https://api.isthereanydeal.com/v01/search/search/?key=${process.env.ANYDEAL_API}&q=${gameTitle}`;
+    const returnedGames = await fetch(urlForFetch)
+      .then(resp => resp.json())
+      .then(({ data: { list } }) => list);
+    const searchingForDLC = bundleDLCPackFilter.some(word =>
+      gameTitle.toLowerCase().includes(word.toLowerCase())
+    );
+
+    if (searchingForDLC) {
+      const sortedGames = returnedGames.sort((a, b) =>
+        a.price_new > b.price_new ? 1 : -1
+      );
+
+      return sortedGames.slice(0, 3);
+    }
+
+    const filteredGamesNoDLC = returnedGames.filter(
+      ({ title }) => !bundleDLCPackFilter.some(word => title.includes(word))
+    );
+
+    const sortedGames = filteredGamesNoDLC.sort((a, b) =>
+      a.price_new > b.price_new ? 1 : -1
+    );
+
+    return sortedGames.slice(0, 3);
   }
 
   //This is here if someone clicks an emote before all 3 are reacted to the message.
