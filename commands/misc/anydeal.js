@@ -65,7 +65,6 @@ module.exports = class AnyDealCommand extends commando.Command {
           );
 
         message.edit(embed).then(message => {
-          let plainTitle, gameTitle;
           const filter = (reaction, user) => {
             return (
               ["❌", "1⃣", "2⃣", "3⃣", "4⃣", "5⃣"].includes(
