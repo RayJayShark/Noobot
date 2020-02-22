@@ -21,7 +21,7 @@ const lavalinkNodes = [
 ];
 
 const client = new Commando.Client({
-  commandPrefix: "?",
+  commandPrefix: "!",
   owner: "92706551487291392",
   disableEveryone: true,
   unknownCommandResponse: false

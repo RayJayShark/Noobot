@@ -18,8 +18,6 @@ module.exports = class PruneCommand extends commando.Command {
 
     if (parseInt(args) > 100) amountToPrune = 100;
 
-    if (isNaN(args)) return message.reply("Not a number.");
-
     await message.channel
       .fetchMessages({ limit: amountToPrune })
       .then(messages => message.channel.bulkDelete(messages));
