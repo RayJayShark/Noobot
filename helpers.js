@@ -654,22 +654,14 @@ module.exports = class Helpers {
     );
 
     if (searchingForDLC) {
-      const sortedGames = returnedGames.sort((a, b) =>
-        a.price_new > b.price_new ? 1 : -1
-      );
-
-      return sortedGames.slice(0, 3);
+      return returnedGames.slice(0, 5);
     }
 
     const filteredGamesNoDLC = returnedGames.filter(
       ({ title }) => !bundleDLCPackFilter.some(word => title.includes(word))
     );
 
-    const sortedGames = filteredGamesNoDLC.sort((a, b) =>
-      a.price_new > b.price_new ? 1 : -1
-    );
-
-    return sortedGames.slice(0, 3);
+    return filteredGamesNoDLC.slice(0, 5);
   }
 
   //This is here if someone clicks an emote before all 3 are reacted to the message.

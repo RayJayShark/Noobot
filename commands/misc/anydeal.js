@@ -6,6 +6,7 @@ module.exports = class AnyDealCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "anydeal",
+      aliases: ["any", "ad"],
       group: "misc",
       memberName: "anydeal",
       description: "Finds the cheapest price for a game."
@@ -18,7 +19,7 @@ module.exports = class AnyDealCommand extends commando.Command {
       .send(`Searching IsThereAnyDeal for \`${args}\`...`)
       .then(async message => {
         const returnedGames = await helper.fetchForGameTitle(args);
-        const [game1, game2, game3] = returnedGames;
+        const [game1, game2, game3, game4, game5] = returnedGames;
 
         if (!returnedGames.length) {
           return await message.channel
@@ -51,12 +52,25 @@ module.exports = class AnyDealCommand extends commando.Command {
             `Currently [$${game3.price_new} on ${game3.shop.name}](${game3.urls.buy})`
           );
 
+        game4 &&
+          embed.addField(
+            `4.  ${game4.title}`,
+            `Currently [$${game4.price_new} on ${game4.shop.name}](${game4.urls.buy})`
+          );
+
+        game5 &&
+          embed.addField(
+            `5.  ${game5.title}`,
+            `Currently [$${game5.price_new} on ${game5.shop.name}](${game5.urls.buy})`
+          );
+
         message.edit(embed).then(message => {
           let plainTitle, gameTitle;
           const filter = (reaction, user) => {
             return (
-              ["❌", "1⃣", "2⃣", "3⃣"].includes(reaction.emoji.name) &&
-              user.id === authorId
+              ["❌", "1⃣", "2⃣", "3⃣", "4⃣", "5⃣"].includes(
+                reaction.emoji.name
+              ) && user.id === authorId
             );
           };
 
@@ -67,6 +81,10 @@ module.exports = class AnyDealCommand extends commando.Command {
             .then(() => game2 && message.react("2⃣"))
             .catch(() => helper.earlyEmoteReact())
             .then(() => game3 && message.react("3⃣"))
+            .catch(() => helper.earlyEmoteReact())
+            .then(() => game4 && message.react("4⃣"))
+            .catch(() => helper.earlyEmoteReact())
+            .then(() => game5 && message.react("5⃣"))
             .catch(() => helper.earlyEmoteReact());
 
           message
@@ -89,6 +107,12 @@ module.exports = class AnyDealCommand extends commando.Command {
               } else if (reaction.emoji.name === "3⃣") {
                 plainTitle = game3.plain;
                 gameTitle = game3.title;
+              } else if (reaction.emoji.name === "4⃣") {
+                plainTitle = game4.plain;
+                gameTitle = game4.title;
+              } else if (reaction.emoji.name === "5⃣") {
+                plainTitle = game5.plain;
+                gameTitle = game5.title;
               }
 
               const pricesForGame = await helper.fetchForGamePrices(plainTitle);
