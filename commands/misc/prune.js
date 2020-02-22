@@ -11,7 +11,7 @@ module.exports = class PruneCommand extends commando.Command {
   }
 
   async run(message, args) {
-    let amountToPrune = 1;
+    let amountToPrune = 2;
     if (parseInt(args) && parseInt(args) < 100 && parseInt(args) >= 1) {
       amountToPrune = parseInt(args) + 1;
     }
