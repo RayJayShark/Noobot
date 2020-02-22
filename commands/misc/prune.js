@@ -12,11 +12,11 @@ module.exports = class PruneCommand extends commando.Command {
 
   async run(message, args) {
     let amountToPrune = 1;
-    if (parseInt(args) && parseInt(args) <= 100 && parseInt(args) >= 1) {
-      amountToPrune = parseInt(args);
+    if (parseInt(args) && parseInt(args) < 100 && parseInt(args) >= 1) {
+      amountToPrune = parseInt(args) + 1;
     }
 
-    if (parseInt(args) > 100) amountToPrune = 100;
+    if (parseInt(args) >= 100) amountToPrune = 100;
 
     await message.channel
       .fetchMessages({ limit: amountToPrune })
