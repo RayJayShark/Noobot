@@ -6,7 +6,7 @@ module.exports = class RollCommand extends commando.Command {
       name: "roll",
       group: "misc",
       memberName: "roll",
-      description: "Rolls 2-15 dice."
+      description: "Rolls 2-15 dice.",
     });
   }
 
@@ -14,7 +14,7 @@ module.exports = class RollCommand extends commando.Command {
     let numOfRolls = 2;
     let results = "";
     if (args) {
-      if (parseInt(args) && parseInt(args) <= 15 && parseInt(args) >= 2) {
+      if (parseInt(args) && parseInt(args) <= 100) {
         numOfRolls = parseInt(args);
       }
     }

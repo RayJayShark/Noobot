@@ -321,7 +321,7 @@ module.exports = class Helpers {
           if (arr[i]) {
             pageinateEmbed.addField(
               `${arrStart + i + 1}. ${arr[i].get().title}`,
-              `${helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
+              `${Helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
                 arr[i].get().url
               })`
             );
@@ -336,7 +336,7 @@ module.exports = class Helpers {
         pageinateEmbed
           .setFooter(`Page ${currentPage} of ${pageTotal}`)
           .setAuthor(
-            `Total Songs:  ${array.length}   -   ${helpers.convertSeconds(
+            `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
               totalLength
             )}`
           );
@@ -362,9 +362,9 @@ module.exports = class Helpers {
 
       sent
         .react("⬅")
-        .catch(err => helpers.earlyEmoteReact())
-        .then(() => sent.react("❌").catch(err => helpers.earlyEmoteReact()))
-        .then(() => sent.react("➡").catch(err => helpers.earlyEmoteReact()));
+        .catch(err => Helpers.earlyEmoteReact())
+        .then(() => sent.react("❌").catch(err => Helpers.earlyEmoteReact()))
+        .then(() => sent.react("➡").catch(err => Helpers.earlyEmoteReact()));
 
       sent
         .awaitReactions(filter, {
@@ -404,7 +404,7 @@ module.exports = class Helpers {
           sent
             .edit(embed)
             .catch(err => {
-              helpers.earlyEmoteReact();
+              Helpers.earlyEmoteReact();
             })
             .then(() =>
               waitReaction(
@@ -417,7 +417,7 @@ module.exports = class Helpers {
             );
         })
         .catch(err => {
-          sent.delete().catch(err => helpers.earlyEmoteReact());
+          sent.delete().catch(err => Helpers.earlyEmoteReact());
         });
     }
 
@@ -443,10 +443,10 @@ module.exports = class Helpers {
         const selected = parseInt(message.content);
         if (!isNaN(selected)) {
           if (array[selected - 1]) {
-            let server = await helpers.retrieveServer(message.guild.id);
+            let server = await Helpers.retrieveServer(message.guild.id);
             const selectedSong = array[selected - 1];
             if (!playlist) {
-              let queue = await helpers.retrieveQueue(server.id);
+              let queue = await Helpers.retrieveQueue(server.id);
               models.SongQueue.destroy({
                 where: { queueId: queue.id, songId: selectedSong.id }
               }).then(() => {
@@ -461,7 +461,7 @@ module.exports = class Helpers {
               });
             } else {
               const plName = originalMessage.content.split(" ")[2];
-              const playlist = await helpers.retrievePlaylist(
+              const playlist = await Helpers.retrievePlaylist(
                 plName,
                 server.id
               );
