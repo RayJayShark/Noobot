@@ -9,7 +9,7 @@ module.exports = class AnyDealCommand extends commando.Command {
       aliases: ["deal", "any", "ad"],
       group: "misc",
       memberName: "anydeal",
-      description: "Finds the cheapest price for a game."
+      description: "Finds the cheapest price for a game.",
     });
   }
 
@@ -21,14 +21,14 @@ module.exports = class AnyDealCommand extends commando.Command {
     const authorId = message.author.id;
     message.channel
       .send(`Searching IsThereAnyDeal for \`${args}\`...`)
-      .then(async message => {
+      .then(async (message) => {
         const returnedGames = await helper.fetchForGameTitle(args);
         const [game1, game2, game3, game4, game5] = returnedGames;
 
         if (!returnedGames.length) {
           return await message.channel
             .send(`No results for ${args}.`)
-            .then(noResults => {
+            .then((noResults) => {
               message.delete(5000);
               noResults.delete(5000);
             });
@@ -68,7 +68,7 @@ module.exports = class AnyDealCommand extends commando.Command {
             `Currently [$${game5.price_new} on ${game5.shop.name}](${game5.urls.buy})`
           );
 
-        message.edit(embed).then(message => {
+        message.edit(embed).then((message) => {
           const filter = (reaction, user) => {
             return (
               ["❌", "1⃣", "2⃣", "3⃣", "4⃣", "5⃣"].includes(
@@ -94,9 +94,9 @@ module.exports = class AnyDealCommand extends commando.Command {
             .awaitReactions(filter, {
               max: 1,
               time: 10000,
-              errors: ["time"]
+              errors: ["time"],
             })
-            .then(async collected => {
+            .then(async (collected) => {
               const reaction = collected.first();
               let plainTitle, gameTitle;
               if (reaction.emoji.name === "❌") {
@@ -135,7 +135,7 @@ module.exports = class AnyDealCommand extends commando.Command {
                 .then(() =>
                   message.channel
                     .send(pricesForEmbed)
-                    .then(message => message.delete(10000))
+                    .then((message) => message.delete(10000))
                 );
             })
             .catch(() =>
