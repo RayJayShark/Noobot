@@ -6,7 +6,7 @@ module.exports = class AnyDealCommand extends commando.Command {
   constructor(client) {
     super(client, {
       name: "anydeal",
-      aliases: ["any", "ad"],
+      aliases: ["deal", "any", "ad"],
       group: "misc",
       memberName: "anydeal",
       description: "Finds the cheapest price for a game."
@@ -14,6 +14,10 @@ module.exports = class AnyDealCommand extends commando.Command {
   }
 
   async run(message, args) {
+    if (!args.length) {
+      return;
+    }
+
     const authorId = message.author.id;
     message.channel
       .send(`Searching IsThereAnyDeal for \`${args}\`...`)

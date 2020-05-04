@@ -8,14 +8,14 @@ require("dotenv").config();
 
 const spotify = new Spotify({
   id: process.env.SPOTIFY_ID,
-  secret: process.env.SPOTIFY_SECRET
+  secret: process.env.SPOTIFY_SECRET,
 });
 
 module.exports = class Helpers {
   static async play(player, message, manager) {
     const dbserver = await this.retrieveServer(message.guild.id);
 
-    this.retrieveQueue(dbserver.id).then(found => {
+    this.retrieveQueue(dbserver.id).then((found) => {
       const checkQueueLength = setInterval(() => {
         if (found.songs.length > 0) {
           clearInterval(checkQueueLength);
@@ -30,23 +30,23 @@ module.exports = class Helpers {
               )}`
             );
 
-          message.channel.send(embed).then(message => {
+          message.channel.send(embed).then((message) => {
             message.delete(10000);
           });
 
           player.play(found.songs[0].get().track);
 
-          player.once("end", msg => {
+          player.once("end", (msg) => {
             if (msg.reason === "REPLACED") return;
             if (msg.reason === "FINISHED" || msg.reason === "STOPPED") {
-              this.retrieveQueue(dbserver.id).then(queue => {
+              this.retrieveQueue(dbserver.id).then((queue) => {
                 models.SongQueue.destroy({
                   where: {
                     songId: queue.songs[0].get().id,
-                    queueId: queue.id
-                  }
+                    queueId: queue.id,
+                  },
                 }).then(() => {
-                  this.retrieveQueue(dbserver.id).then(queue => {
+                  this.retrieveQueue(dbserver.id).then((queue) => {
                     if (queue.songs.length > 0) {
                       this.play(player, message, manager);
                     } else {
@@ -68,8 +68,8 @@ module.exports = class Helpers {
         const trackId = args.split("/")[4].split("?")[0];
         let song = await spotify
           .request(`https://api.spotify.com/v1/tracks/${trackId}`)
-          .then(data => this.createYoutubeSearch(data))
-          .catch(err => {
+          .then((data) => this.createYoutubeSearch(data))
+          .catch((err) => {
             reject(err);
           });
         resolve(song);
@@ -77,14 +77,14 @@ module.exports = class Helpers {
         const playlistId = args.split("/")[4].split("?")[0];
         const queue = await spotify
           .request(`https://api.spotify.com/v1/playlists/${playlistId}`)
-          .then(async data => {
+          .then(async (data) => {
             return await Promise.all(
-              data.tracks.items.map(track =>
+              data.tracks.items.map((track) =>
                 this.createYoutubeSearch(track.track)
               )
             );
           })
-          .catch(err => {
+          .catch((err) => {
             reject(err);
           });
         resolve(queue);
@@ -92,9 +92,9 @@ module.exports = class Helpers {
         const albumId = args.split("/")[4].split("?")[0];
         const queue = await spotify
           .request(`https://api.spotify.com/v1/albums/${albumId}`)
-          .then(async data => {
+          .then(async (data) => {
             return await Promise.all(
-              data.tracks.items.map(track =>
+              data.tracks.items.map((track) =>
                 this.createYoutubeSearch(
                   track,
                   data.release_date.split("-")[0],
@@ -103,7 +103,7 @@ module.exports = class Helpers {
               )
             );
           })
-          .catch(err => {
+          .catch((err) => {
             reject(err);
           });
         resolve(queue);
@@ -145,8 +145,8 @@ module.exports = class Helpers {
     return new Promise((resolve, reject) => {
       models.Playlist.findOne({
         where: { name, serverId },
-        include: "songs"
-      }).then(playlist => {
+        include: "songs",
+      }).then((playlist) => {
         if (!playlist) {
           resolve(null);
         } else {
@@ -169,29 +169,29 @@ module.exports = class Helpers {
   static async songPlaylistJoin(song, playlist) {
     const {
       track,
-      info: { title, length, uri }
+      info: { title, length, uri },
     } = song;
 
     models.Song.findOne({
-      where: { track }
-    }).then(async song => {
+      where: { track },
+    }).then(async (song) => {
       if (!song) {
         models.Song.create({
           track,
           title,
           url: uri,
-          lengthSeconds: length / 1000
-        }).then(song => {
+          lengthSeconds: length / 1000,
+        }).then((song) => {
           models.SongPlaylist.findOne({
             where: {
               songId: song.get().id,
-              playlistId: playlist.id
-            }
-          }).then(joined => {
+              playlistId: playlist.id,
+            },
+          }).then((joined) => {
             if (!joined) {
               models.SongPlaylist.create({
                 songId: song.get().id,
-                playlistId: playlist.id
+                playlistId: playlist.id,
               });
             }
           });
@@ -200,13 +200,13 @@ module.exports = class Helpers {
         models.SongPlaylist.findOne({
           where: {
             songId: song.get().id,
-            playlistId: playlist.id
-          }
-        }).then(joined => {
+            playlistId: playlist.id,
+          },
+        }).then((joined) => {
           if (!joined) {
             models.SongPlaylist.create({
               songId: song.get().id,
-              playlistId: playlist.id
+              playlistId: playlist.id,
             });
           }
         });
@@ -217,27 +217,27 @@ module.exports = class Helpers {
   static async songQueueJoin(video, queue) {
     const {
       track,
-      info: { title, uri, length }
+      info: { title, uri, length },
     } = video;
 
-    models.Song.findOne({ where: { track } }).then(async song => {
+    models.Song.findOne({ where: { track } }).then(async (song) => {
       if (song === null) {
         models.Song.create({
           track,
           title,
           url: uri,
-          lengthSeconds: length / 1000
-        }).then(song => {
+          lengthSeconds: length / 1000,
+        }).then((song) => {
           models.SongQueue.findOne({
             where: {
               songId: song.get().id,
-              queueId: queue.id
-            }
-          }).then(joined => {
+              queueId: queue.id,
+            },
+          }).then((joined) => {
             if (!joined) {
               models.SongQueue.create({
                 songId: song.get().id,
-                queueId: queue.id
+                queueId: queue.id,
               });
             }
           });
@@ -246,13 +246,13 @@ module.exports = class Helpers {
         models.SongQueue.findOne({
           where: {
             songId: song.get().id,
-            queueId: queue.id
-          }
-        }).then(joined => {
+            queueId: queue.id,
+          },
+        }).then((joined) => {
           if (!joined) {
             models.SongQueue.create({
               songId: song.get().id,
-              queueId: queue.id
+              queueId: queue.id,
             });
           }
         });
@@ -261,17 +261,17 @@ module.exports = class Helpers {
   }
 
   static ytSearchWithChoice(search) {
-    return new Promise(async resolve => {
+    return new Promise(async (resolve) => {
       async function getYouTubeSongs(search) {
         const params = new URLSearchParams();
         params.append("identifier", `ytsearch:${search}`);
 
         return fetch(`http://localhost:2333/loadtracks?${params.toString()}`, {
-          headers: { Authorization: process.env.LAVALINK_PASSWORD }
+          headers: { Authorization: process.env.LAVALINK_PASSWORD },
         })
-          .then(res => res.json())
-          .then(data => data.tracks)
-          .catch(err => {
+          .then((res) => res.json())
+          .then((data) => data.tracks)
+          .catch((err) => {
             console.error(err);
             return null;
           });
@@ -321,7 +321,7 @@ module.exports = class Helpers {
           if (arr[i]) {
             pageinateEmbed.addField(
               `${arrStart + i + 1}. ${arr[i].get().title}`,
-              `${helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
+              `${Helpers.convertSeconds(arr[i].get().lengthSeconds)} - [Link](${
                 arr[i].get().url
               })`
             );
@@ -336,7 +336,7 @@ module.exports = class Helpers {
         pageinateEmbed
           .setFooter(`Page ${currentPage} of ${pageTotal}`)
           .setAuthor(
-            `Total Songs:  ${array.length}   -   ${helpers.convertSeconds(
+            `Total Songs:  ${array.length}   -   ${Helpers.convertSeconds(
               totalLength
             )}`
           );
@@ -362,17 +362,17 @@ module.exports = class Helpers {
 
       sent
         .react("⬅")
-        .catch(err => helpers.earlyEmoteReact())
-        .then(() => sent.react("❌").catch(err => helpers.earlyEmoteReact()))
-        .then(() => sent.react("➡").catch(err => helpers.earlyEmoteReact()));
+        .catch((err) => Helpers.earlyEmoteReact())
+        .then(() => sent.react("❌").catch((err) => Helpers.earlyEmoteReact()))
+        .then(() => sent.react("➡").catch((err) => Helpers.earlyEmoteReact()));
 
       sent
         .awaitReactions(filter, {
           max: 1,
           time: 10000,
-          errors: ["time"]
+          errors: ["time"],
         })
-        .then(async collected => {
+        .then(async (collected) => {
           const reaction = collected.first();
           if (reaction.emoji.name === "⬅" && currentPage !== 1) {
             currentPage--;
@@ -403,8 +403,8 @@ module.exports = class Helpers {
           );
           sent
             .edit(embed)
-            .catch(err => {
-              helpers.earlyEmoteReact();
+            .catch((err) => {
+              Helpers.earlyEmoteReact();
             })
             .then(() =>
               waitReaction(
@@ -416,8 +416,8 @@ module.exports = class Helpers {
               )
             );
         })
-        .catch(err => {
-          sent.delete().catch(err => helpers.earlyEmoteReact());
+        .catch((err) => {
+          sent.delete().catch((err) => Helpers.earlyEmoteReact());
         });
     }
 
@@ -433,52 +433,52 @@ module.exports = class Helpers {
       const originalMessage = message;
       const collector = new Discord.MessageCollector(
         message.channel,
-        m => m.author.id === message.author.id,
+        (m) => m.author.id === message.author.id,
         { time: 30000, errors: ["time"] }
       );
       messageApproval = await message.reply(
         "Reply with song number to delete it."
       );
-      collector.on("collect", async message => {
+      collector.on("collect", async (message) => {
         const selected = parseInt(message.content);
         if (!isNaN(selected)) {
           if (array[selected - 1]) {
-            let server = await helpers.retrieveServer(message.guild.id);
+            let server = await Helpers.retrieveServer(message.guild.id);
             const selectedSong = array[selected - 1];
             if (!playlist) {
-              let queue = await helpers.retrieveQueue(server.id);
+              let queue = await Helpers.retrieveQueue(server.id);
               models.SongQueue.destroy({
-                where: { queueId: queue.id, songId: selectedSong.id }
+                where: { queueId: queue.id, songId: selectedSong.id },
               }).then(() => {
-                message.channel.fetchMessage(sentId).then(message => {
+                message.channel.fetchMessage(sentId).then((message) => {
                   message.delete();
                   messageApproval.delete();
                 });
                 message.channel
                   .send(`\`${selectedSong.title}\` removed from Queue!`)
-                  .then(message => message.delete(5000));
+                  .then((message) => message.delete(5000));
                 collector.stop();
               });
             } else {
               const plName = originalMessage.content.split(" ")[2];
-              const playlist = await helpers.retrievePlaylist(
+              const playlist = await Helpers.retrievePlaylist(
                 plName,
                 server.id
               );
               models.SongPlaylist.destroy({
                 where: {
                   playlistId: playlist.id,
-                  songId: selectedSong.id
-                }
-              }).then(destroyed => {
+                  songId: selectedSong.id,
+                },
+              }).then((destroyed) => {
                 if (destroyed) {
-                  message.channel.fetchMessage(sentId).then(message => {
+                  message.channel.fetchMessage(sentId).then((message) => {
                     message.delete();
                     messageApproval.delete();
                   });
                   message.channel
                     .send(`\`${selectedSong.title}\` removed from Playlist!`)
-                    .then(message => message.delete(5000));
+                    .then((message) => message.delete(5000));
                   collector.stop();
                 }
               });
@@ -486,14 +486,14 @@ module.exports = class Helpers {
           } else {
             message.channel
               .send("No song from your selected number, try again.")
-              .then(message => message.delete(5000));
+              .then((message) => message.delete(5000));
           }
         }
       });
     }
 
     let sentId;
-    message.channel.send(embed).then(message => {
+    message.channel.send(embed).then((message) => {
       sentId = message.id;
       waitReaction(
         message,
@@ -506,17 +506,17 @@ module.exports = class Helpers {
   }
 
   static lavalinkHelper(search, artist, trackName, duration, albumName) {
-    return new Promise(async resolve => {
+    return new Promise(async (resolve) => {
       async function getYouTubeSongs(search) {
         const params = new URLSearchParams();
         params.append("identifier", `ytsearch:${search}`);
 
         return fetch(`http://localhost:2333/loadtracks?${params.toString()}`, {
-          headers: { Authorization: process.env.LAVALINK_PASSWORD }
+          headers: { Authorization: process.env.LAVALINK_PASSWORD },
         })
-          .then(res => res.json())
-          .then(data => data.tracks)
-          .catch(err => {
+          .then((res) => res.json())
+          .then((data) => data.tracks)
+          .catch((err) => {
             console.error(err);
             return null;
           });
@@ -524,9 +524,9 @@ module.exports = class Helpers {
 
       const returnedVideos = await getYouTubeSongs(search);
       if ((artist, trackName, duration, albumName)) {
-        const filtered = returnedVideos.filter(video => {
+        const filtered = returnedVideos.filter((video) => {
           const {
-            info: { title, length }
+            info: { title, length },
           } = video;
           const exp = XRegExp(`[\\p{L}\\p{Nd}]+`);
           const videoTitle = XRegExp.match(title, exp, "all");
@@ -534,18 +534,18 @@ module.exports = class Helpers {
           const lengthInSeconds = length / 1000;
 
           return (
-            (searchTitle.some(word => videoTitle.includes(word)) &&
+            (searchTitle.some((word) => videoTitle.includes(word)) &&
               lengthInSeconds - duration <= 3 &&
               lengthInSeconds - duration >= 0) ||
-            (searchTitle.some(word => videoTitle.includes(word)) &&
+            (searchTitle.some((word) => videoTitle.includes(word)) &&
               duration - lengthInSeconds <= 3 &&
               duration - lengthInSeconds >= 0)
           );
         });
 
-        const officialVideo = filtered.filter(video => {
+        const officialVideo = filtered.filter((video) => {
           const {
-            info: { author }
+            info: { author },
           } = video;
           return author.toLowerCase().includes(artist.toLowerCase());
         });
@@ -565,17 +565,17 @@ module.exports = class Helpers {
   }
 
   static lavalinkForURLOnly(VideoURL) {
-    return new Promise(async resolve => {
+    return new Promise(async (resolve) => {
       async function getYouTubeSongs(VideoURL) {
         const params = new URLSearchParams();
         params.append("identifier", VideoURL);
 
         return fetch(`http://localhost:2333/loadtracks?${params.toString()}`, {
-          headers: { Authorization: process.env.LAVALINK_PASSWORD }
+          headers: { Authorization: process.env.LAVALINK_PASSWORD },
         })
-          .then(res => res.json())
-          .then(data => data.tracks)
-          .catch(err => {
+          .then((res) => res.json())
+          .then((data) => data.tracks)
+          .catch((err) => {
             console.error(err);
             return null;
           });
@@ -609,7 +609,7 @@ module.exports = class Helpers {
     const data = {
       guild: message.guild.id,
       channel: message.member.voiceChannelID,
-      host: "localhost"
+      host: "localhost",
     };
 
     const botPlayingMusic = manager.spawnPlayer(data);
@@ -618,7 +618,7 @@ module.exports = class Helpers {
       manager.leave(message.guild.id);
       const player = manager.join(data);
 
-      this.retrieveQueue(server.id).then(queue => {
+      this.retrieveQueue(server.id).then((queue) => {
         if (queue) {
           this.play(player, message, manager);
         }
@@ -629,7 +629,7 @@ module.exports = class Helpers {
   static async fetchForGamePrices(plainTitle) {
     const urlForFetch = `https://api.isthereanydeal.com/v01/game/prices/?key=${process.env.ANYDEAL_API}&plains=${plainTitle}`;
     const returnedPrices = await fetch(urlForFetch)
-      .then(resp => resp.json())
+      .then((resp) => resp.json())
       .then(({ data }) => data[`${plainTitle}`]["list"]);
 
     const objectForReturn = returnedPrices
@@ -637,7 +637,7 @@ module.exports = class Helpers {
       .map(({ price_new, url, shop: { name } }) => ({
         current_price: price_new,
         url,
-        store: name
+        store: name,
       }));
 
     return objectForReturn;
@@ -647,9 +647,9 @@ module.exports = class Helpers {
     const bundleDLCPackFilter = ["DLC", "Bundle", "Pack"];
     const urlForFetch = `https://api.isthereanydeal.com/v01/search/search/?key=${process.env.ANYDEAL_API}&q=${gameTitle}`;
     const returnedGames = await fetch(urlForFetch)
-      .then(resp => resp.json())
+      .then((resp) => resp.json())
       .then(({ data: { list } }) => list);
-    const searchingForDLC = bundleDLCPackFilter.some(word =>
+    const searchingForDLC = bundleDLCPackFilter.some((word) =>
       gameTitle.toLowerCase().includes(word.toLowerCase())
     );
 
@@ -658,7 +658,7 @@ module.exports = class Helpers {
     }
 
     const filteredGamesNoDLC = returnedGames.filter(
-      ({ title }) => !bundleDLCPackFilter.some(word => title.includes(word))
+      ({ title }) => !bundleDLCPackFilter.some((word) => title.includes(word))
     );
 
     return filteredGamesNoDLC.slice(0, 5);
