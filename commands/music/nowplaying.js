@@ -14,6 +14,7 @@ module.exports = class NowPlayingCommand extends commando.Command {
   }
 
   async run(message) {
+    message.delete(7000);
     const dbserver = await helper.retrieveServer(message.guild.id);
     const queue = await helper.retrieveQueue(dbserver.id);
     const manager = this.client.manager;

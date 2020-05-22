@@ -15,6 +15,7 @@ module.exports = class SearchCommand extends commando.Command {
 
   async run(message, args) {
     if (message.member.voiceChannel) {
+      message.delete(2000);
       const threeResults = await helper.ytSearchWithChoice(args);
       const server = await helper.retrieveServer(message.guild.id);
       const queue = await helper.retrieveQueue(server.id);

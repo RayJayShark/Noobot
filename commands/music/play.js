@@ -17,6 +17,7 @@ module.exports = class PlayCommand extends commando.Command {
     if (!args) {
       return;
     }
+    message.delete(2000);
     if (message.member.voiceChannel) {
       const dbserver = await helper.retrieveServer(message.guild.id);
       let queue = await helper.retrieveQueue(dbserver.id);

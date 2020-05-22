@@ -12,6 +12,7 @@ module.exports = class SkipCommand extends commando.Command {
 
   run(message) {
     if (message.member.voiceChannel) {
+      message.delete(2000);
       const manager = this.client.manager;
       const data = {
         guild: message.guild.id,

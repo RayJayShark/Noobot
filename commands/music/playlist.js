@@ -315,6 +315,7 @@ module.exports = class PlaylistCommand extends commando.Command {
               });
 
               helper.joinIfNotPlaying(manager, server, message);
+              message.delete(2000);
             } else {
               message.reply("You need to be in a voice channel.");
             }
